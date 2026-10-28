@@ -1,0 +1,1409 @@
+<title>Mosel-Planer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vollkorn:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: Kopf mit Planungsstand + "Wer bist du" → Tabs (Swipen · Orte · Karte · Planen · Stimmen); auf dem Handy wandern die Tabs in eine feste Leiste unten. */
+:root{
+  --bg:#ECEFEC; --surface:#FFFFFF; --sunk:#E0E6E2; --ink:#1A2427; --muted:#56646A; --line:#CFD8D4;
+  --accent:#1D5C68; --accent-soft:#D3E6E8; --gold:#9A6E0E; --gold-soft:#F2E5C2;
+  --signal:#9B2738; --signal-soft:#F3DADF; --good:#2B724C; --good-soft:#DAEDE1; --warn:#9A5F0A;
+  --land:#F6F7F3; --abroad:#E3E7E3; --river:#3F8EA6;
+  --display:"Vollkorn",Georgia,"Times New Roman",serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r:10px; --navh:0px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101719; --surface:#172124; --sunk:#1E2A2D; --ink:#E3EBE9; --muted:#93A4A6; --line:#29373A;
+  --accent:#72BFCB; --accent-soft:#1A3A40; --gold:#E2B655; --gold-soft:#3A3020;
+  --signal:#E77C8B; --signal-soft:#3B2128; --good:#68C493; --good-soft:#17302A; --warn:#E3A24E;
+  --land:#1C2629; --abroad:#141D20; --river:#4F9DB5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101719; --surface:#172124; --sunk:#1E2A2D; --ink:#E3EBE9; --muted:#93A4A6; --line:#29373A;
+  --accent:#72BFCB; --accent-soft:#1A3A40; --gold:#E2B655; --gold-soft:#3A3020;
+  --signal:#E77C8B; --signal-soft:#3B2128; --good:#68C493; --good-soft:#17302A; --warn:#E3A24E;
+  --land:#1C2629; --abroad:#141D20; --river:#4F9DB5; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1220px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px calc(48px + var(--navh));display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:0}
+h1{font-size:clamp(30px,5vw,46px);line-height:1}
+h2{font-size:23px;line-height:1.15}
+.eyebrow{text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--muted);font-weight:600}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:lining-nums tabular-nums}
+.tabpane{display:flex;flex-direction:column;gap:16px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:3px 10px;background:var(--surface)}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.status.live i{background:var(--good)} .status.local i{background:var(--warn)}
+
+/* Planungsstand */
+.planbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ptile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;display:grid;gap:1px;text-align:left;min-width:0;align-content:start}
+.ptile span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.ptile b{font-family:var(--display);font-size:17px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
+.ptile small{color:var(--muted);font-size:12px;line-height:1.25}
+.ptile.set{border-color:var(--good);background:linear-gradient(var(--good-soft),var(--surface))}
+.ptile.open b{color:var(--muted);font-weight:600}
+@media (max-width:560px){.planbar{gap:6px}.ptile{padding:6px 8px}.ptile b{font-size:15px}.ptile small{display:none}}
+
+/* Tabs */
+nav.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+nav.tabs button{flex:1;border:0;background:transparent;border-radius:8px;padding:8px 6px;font-weight:600;font-size:16px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted)}
+nav.tabs button svg{width:20px;height:20px;flex:none}
+nav.tabs button[aria-selected="true"]{background:var(--accent);color:var(--surface)}
+@media (max-width:700px){
+  :root{--navh:64px}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;top:auto;border-radius:0;border-width:1px 0 0;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));gap:2px}
+  nav.tabs button{flex-direction:column;gap:1px;font-size:12.5px;padding:5px 2px}
+  nav.tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent)}
+  .toast{bottom:calc(var(--navh) + 14px + env(safe-area-inset-bottom,0px))!important}
+}
+
+/* Wer bist du */
+.me{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+.me.ask{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.me .q{font-family:var(--display);font-weight:700;font-size:17px}
+.person{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:4px 11px;text-align:left;line-height:1.15}
+.person b{display:block;font-size:16px;font-weight:600}
+.person small{color:var(--muted);font-size:12px}
+.person[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.person[aria-pressed="true"] small{color:inherit;opacity:.85}
+.me.compact{padding:8px 12px;gap:6px 10px}
+.me.compact .hint,.me.compact .person small{display:none}
+.me.compact .q{font-size:15px;color:var(--muted)}
+.me.compact .person{padding:3px 10px}
+
+/* Panels */
+.panel,.route{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.dhead > div:first-child{min-width:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--sunk);flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:7px 12px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+.field{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.hint{font-size:13px;color:var(--muted);margin:0;max-width:80ch}
+.callout{font-size:14px;margin:0;padding:10px 12px;border-radius:8px;background:var(--gold-soft);display:grid;gap:4px}
+.callout ul{margin:0;padding-left:18px;display:grid;gap:3px}
+.desk{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px}
+@media (max-width:820px){.desk{grid-template-columns:1fr}}
+details.fold>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:"+";font-family:var(--display);font-size:22px;color:var(--muted)}
+details.fold[open]>summary::after{content:"−"}
+details.fold[open]>summary{margin-bottom:12px}
+.weights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 20px}
+@media (max-width:520px){.weights{grid-template-columns:1fr}}
+.w{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center}
+.w label{font-weight:500;font-size:14px}
+.w output{font-family:var(--display);font-weight:700;font-size:17px;color:var(--accent);min-width:1.2em;text-align:right}
+.w input{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.filters{display:grid;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:99px;padding:5px 12px;font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.rangeline{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;font-size:14px}
+.rangeline input{grid-column:1/-1;accent-color:var(--accent)}
+.rangeline b{font-family:var(--display);font-size:17px}
+.linkbtn{border:0;background:none;color:var(--accent);padding:0;font-size:inherit;text-decoration:underline;text-align:left}
+.origins{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 14px}
+@media (max-width:640px){.origins{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.origins label{display:grid;gap:2px;font-size:13px;color:var(--muted);font-weight:600}
+.origins select{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-weight:500;color:var(--ink);width:100%}
+.origins label.mine{color:var(--accent)}
+
+/* Anleitung */
+.guide-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 28px}
+@media (max-width:760px){.guide-grid{grid-template-columns:1fr}}
+.guide h3{font-size:18px;margin-bottom:6px}
+.guide ol{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px}
+.sym{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;align-items:center;font-size:14px;margin:0}
+.sym dt{font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.sym dd{margin:0;color:var(--muted)}
+.kbd{display:inline-grid;place-items:center;min-width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--bg);font-weight:700;font-size:13px;padding:0 4px}
+.mini-pin{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--accent)}
+.mini-dia{display:inline-block;width:11px;height:11px;transform:rotate(45deg);background:var(--gold);margin:0 2px}
+
+/* Swipen */
+.swipe{display:grid;gap:14px;justify-items:center}
+.swipe-top{width:100%;max-width:440px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.progress{flex:1;min-width:140px}
+.progress .bar{height:6px}
+.deck{position:relative;width:100%;max-width:440px;height:min(600px,calc(100dvh - 360px));min-height:430px}
+@media (max-width:700px){
+  header.top .eyebrow{font-size:11px}
+  h1{font-size:26px}
+  .wrap{gap:12px;padding-block:12px calc(24px + var(--navh))}
+  .deck{height:calc(100dvh - 400px - var(--navh));min-height:380px}
+  .card .hero{height:112px}
+  .card h3{font-size:24px}
+  .card .body{padding:12px 14px;gap:8px}
+  .card .note{font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .swipe-help{display:none}
+  .swipe{gap:10px}
+  .sb{width:54px;height:54px}
+}
+.card{position:absolute;inset:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 28px rgb(15 35 40 / .14);display:flex;flex-direction:column;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;will-change:transform}
+.card.under{transform:scale(.95) translateY(12px);opacity:.7;pointer-events:none}
+.card.top{cursor:grab}
+.card.top:active{cursor:grabbing}
+.card .hero{position:relative;height:150px;flex:none;background:var(--land);border-bottom:1px solid var(--line)}
+.card .hero svg{position:absolute;inset:0;width:100%;height:100%}
+.lm-river{fill:none;stroke:var(--river);stroke-width:3.2;stroke-linejoin:round;stroke-linecap:round}
+.lm-river.thin{stroke-width:1.8}
+.lm-dot{fill:var(--muted)}
+.lm-lab{fill:var(--muted);font-family:var(--body);font-size:6.6px;font-weight:600;paint-order:stroke;stroke:var(--land);stroke-width:2px;stroke-linejoin:round}
+.lm-pin{fill:var(--accent);stroke:var(--surface);stroke-width:1.4}
+.lm-pin.aus{fill:var(--gold)}
+.lm-me{fill:var(--ink);font-family:var(--display);font-size:9px;font-weight:700;paint-order:stroke;stroke:var(--land);stroke-width:2.6px;stroke-linejoin:round}
+.lm-scale{stroke:var(--ink);stroke-width:1}
+.lm-scalet{fill:var(--ink);font-family:var(--body);font-size:5.6px;font-weight:600}
+.card .rankpill{position:absolute;top:10px;left:10px;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:1px 10px;font-weight:700;font-size:14px}
+.card .scorepill{position:absolute;top:10px;right:10px;background:var(--ink);color:var(--surface);border-radius:99px;padding:2px 10px;font-weight:700;font-size:14px}
+.card .catpill{position:absolute;top:10px;left:10px;background:var(--gold-soft);color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:1px 10px;font-weight:600;font-size:13px}
+.card .body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow:auto;flex:1}
+.card h3{font-size:28px;line-height:1.05}
+.card .sub{color:var(--muted);font-size:14px}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px}
+.fact > span:not(.dots):not(.eur):not(.ostate){display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.fact .dots{display:flex;margin-top:4px}
+.fact b{font-family:var(--display);font-size:19px;font-weight:700}
+.fact small{color:var(--muted);font-size:12px}
+.card .note{font-size:14px;margin:0}
+.others{display:flex;flex-wrap:wrap;gap:4px}
+.stamp{position:absolute;top:26px;padding:4px 12px;border:3px solid currentColor;border-radius:8px;font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:.04em;opacity:0;pointer-events:none;background:var(--surface)}
+.stamp.yes{left:20px;color:var(--good);transform:rotate(-12deg)}
+.stamp.no{right:20px;color:var(--signal);transform:rotate(12deg)}
+.stamp.top2{left:50%;top:60px;transform:translateX(-50%);color:var(--signal)}
+.swipe-btns{display:flex;gap:14px;align-items:center;justify-content:center}
+.sb{width:58px;height:58px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:22px;display:grid;place-items:center;box-shadow:0 3px 10px rgb(15 35 40 / .1);font-weight:700}
+.sb.small{width:44px;height:44px;font-size:16px}
+.sb.no{color:var(--ink)} .sb.yes{color:var(--good)} .sb.top2{color:var(--signal)}
+.sb:disabled{opacity:.4;cursor:default}
+.swipe-help{font-size:13px;color:var(--muted);text-align:center;margin:0}
+.done{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;border:1px dashed var(--line);border-radius:16px;background:var(--surface)}
+.done h3{font-size:26px}
+.ostate{display:inline-block;font-size:12px;font-weight:700;border-radius:4px;padding:1px 6px;margin-top:3px;white-space:nowrap}
+.ostate.ja,.ostate.frei{background:var(--good-soft);color:var(--good)}
+.ostate.teils{background:var(--gold-soft);color:var(--warn)}
+.ostate.nein{background:var(--signal-soft);color:var(--signal)}
+
+/* Stimmen */
+.peoplegrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.peoplegrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:6px;min-width:0}
+.pcard.mine{border-color:var(--accent)}
+.pcard h3{font-size:20px}
+.pcard small{color:var(--muted)}
+.pcard .counts{display:flex;gap:10px;font-size:14px;flex-wrap:wrap}
+.bar{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--accent)}
+.buckets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.buckets{grid-template-columns:1fr}}
+.bucket{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.bucket.match{border-color:var(--good);background:linear-gradient(var(--good-soft),var(--surface) 70px)}
+.bucket h3{font-size:19px}
+.bucket ol,.bucket ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.bucket li button{border:0;background:none;padding:0;font:inherit;font-weight:600;text-align:left;color:var(--ink)}
+.bucket li small{color:var(--muted)}
+.matrix-wrap{overflow-x:auto;margin-inline:-4px}
+table.matrix{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+.matrix th,.matrix td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:center}
+.matrix th{font-weight:600;font-size:14px;line-height:1.1}
+.matrix th:first-child,.matrix td:first-child{text-align:left;position:sticky;left:0;background:var(--surface)}
+.matrix td.sum{font-family:var(--display);font-weight:700;font-size:18px}
+.matrix .mine{background:var(--accent-soft)}
+.matrix tr.allyes td{background:var(--good-soft)}
+.v{font-weight:600;white-space:nowrap}
+.v2{color:var(--signal)} .v1{color:var(--signal);opacity:.75} .vn{color:var(--muted)} .v0{color:var(--line)}
+.matrix button.goto{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--ink);text-align:left}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+
+/* Ausflug-Detail */
+.adetail{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:14px;display:grid;gap:10px}
+.adetail .facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:560px){.adetail .facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.adetail p{margin:0;font-size:14px}
+
+/* Karte */
+.map-wrap{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--abroad)}
+.map-wrap svg{display:block;width:100%;height:auto;max-height:76vh;touch-action:pan-y}
+.map-wrap .land{fill:var(--land);stroke:var(--muted);stroke-opacity:.45;stroke-linejoin:round}
+.map-wrap .river{fill:none;stroke:var(--river);stroke-linejoin:round;stroke-linecap:round}
+.map-wrap .rname{fill:var(--river);font-family:var(--body);font-style:italic;font-weight:600}
+.map-wrap .reg{fill:var(--muted);font-family:var(--body);font-weight:600;letter-spacing:.16em;text-transform:uppercase;opacity:.7}
+.map-wrap .pin{cursor:pointer}
+.map-wrap .pin circle,.map-wrap .pin path{stroke:var(--surface)}
+.map-wrap .pin:hover circle,.map-wrap .pin:focus circle,.map-wrap .pin:hover path,.map-wrap .pin:focus path{stroke:var(--ink)}
+.map-wrap .pin text{fill:var(--surface);font-family:var(--body);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.map-wrap .lab{fill:var(--ink);font-family:var(--body);font-weight:600;paint-order:stroke;stroke:var(--land);stroke-linejoin:round;pointer-events:none}
+.map-wrap .origin rect{fill:var(--ink)}
+.map-wrap .origin text{fill:var(--ink);font-family:var(--body);font-weight:700;paint-order:stroke;stroke:var(--land);stroke-linejoin:round}
+.map-wrap .route-line{fill:none;stroke:var(--ink);opacity:.45}
+.map-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);align-items:center}
+.map-legend i{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-2px;margin-right:5px}
+.map-legend i.dia{border-radius:0;transform:rotate(45deg) scale(.85)}
+.ttip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:13px;padding:6px 9px;border-radius:6px;max-width:240px;line-height:1.3;transform:translate(-50%,calc(-100% - 10px))}
+.ttip b{font-size:14px}
+
+/* Rangliste */
+.board{display:flex;flex-direction:column;gap:6px}
+.board-head,.row{display:grid;grid-template-columns:34px minmax(0,2fr) 74px 88px 56px 56px 56px 56px 56px 56px 46px 62px 146px;gap:10px;align-items:center}
+.board-head{text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-weight:600;color:var(--muted);padding:0 12px}
+.board-head button{border:0;background:none;padding:0;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;text-align:left}
+.board-head button[aria-sort]{color:var(--accent)}
+.row{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;scroll-margin-top:70px}
+.row.is-fav{border-color:var(--signal)}
+.row.is-goal{border-color:var(--good);box-shadow:0 0 0 2px var(--good-soft)}
+.row.is-out{opacity:.62}
+.rank{font-family:var(--display);font-weight:700;font-size:26px;line-height:1;color:var(--muted)}
+.row.top3 .rank{color:var(--accent)}
+.name{min-width:0}
+.name h3{font-size:19px;line-height:1.1}
+.name .sub{font-size:13px;color:var(--muted)}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.badge{font-size:11px;font-weight:600;letter-spacing:.03em;border-radius:4px;padding:1px 6px;background:var(--sunk);color:var(--muted)}
+.badge.goal{background:var(--good-soft);color:var(--good)}
+.badge.out{background:var(--signal-soft);color:var(--signal)}
+.badge.vote{background:var(--signal-soft);color:var(--signal)}
+.badge.veto{background:var(--sunk);color:var(--muted);text-decoration:line-through}
+.score{display:grid;gap:3px}
+.score b{font-family:var(--display);font-size:22px;line-height:1}
+.cell{font-size:14px;min-width:0}
+.cell b{font-family:var(--display);font-size:18px;font-weight:700}
+.cell small{display:block;color:var(--muted);font-size:12px;line-height:1.2}
+.dots{display:inline-flex;gap:2px}
+.dots i{width:9px;height:9px;border-radius:2px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--muted);opacity:.4}
+.dots i.on{background:var(--accent);box-shadow:none;opacity:1}
+.eur{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+.eur .off{color:var(--muted);opacity:.35}
+.lbl{display:none}
+.actions{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.vote{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.vote button{border:0;background:var(--bg);height:36px;min-width:38px;padding:0 6px;font-size:14px;font-weight:600;color:var(--muted)}
+.vote button+button{border-left:1px solid var(--line)}
+.vote button[aria-pressed="true"]{background:var(--signal);color:var(--surface)}
+.vote button.no[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.ib{border:1px solid var(--line);background:var(--bg);border-radius:8px;width:38px;height:38px;display:inline-grid;place-items:center;font-size:17px;line-height:1}
+.ib:hover,.vote button:hover{color:var(--ink)}
+.more{grid-column:2/-1;display:grid;gap:10px;font-size:14px;border-top:1px dashed var(--line);padding-top:10px;min-width:0}
+.more p{margin:0}
+.trip{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.trip > div{background:var(--sunk);border-radius:8px;padding:8px 10px;min-width:0}
+.trip .lbl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin-bottom:2px}
+.trip ul{margin:0;padding:0;list-style:none;display:grid;gap:2px}
+.trip li{display:flex;justify-content:space-between;gap:8px}
+.trip li > span:last-child{white-space:nowrap}
+.strike{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.strike input{flex:1 1 200px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.btn{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 12px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.good{background:var(--good);border-color:var(--good);color:var(--surface)}
+.btn.danger{background:var(--signal);border-color:var(--signal);color:var(--surface)}
+.btn:disabled{opacity:.5;cursor:default}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.empty{padding:24px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);margin:0}
+details.outs{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px}
+details.outs summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:18px}
+.outlist{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.outitem{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-block:6px}
+.outitem span{color:var(--muted);font-size:14px}
+
+/* Planen: Termin */
+.daygrid-wrap{overflow-x:auto;margin-inline:-4px;padding-inline:4px}
+table.days{border-collapse:separate;border-spacing:3px;font-size:13px;min-width:640px}
+.days th{font-weight:600;font-size:12px;line-height:1.15;color:var(--muted);padding:2px 0;text-align:center;min-width:34px}
+.days th b{display:block;font-size:14px;color:var(--ink)}
+.days th.we b{color:var(--accent)}
+.days th.sp{color:var(--signal)}
+.days th:first-child,.days td:first-child{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;padding-right:6px;font-size:14px;font-weight:600;color:var(--ink);min-width:72px}
+.days td.mine{color:var(--accent)}
+.dc{width:34px;height:32px;border-radius:6px;border:1px solid var(--line);background:var(--bg);font-weight:700;font-size:14px;color:var(--muted);display:grid;place-items:center;padding:0}
+.dc[data-v="2"]{background:var(--good);border-color:var(--good);color:var(--surface)}
+.dc[data-v="1"]{background:var(--gold-soft);border-color:var(--gold);color:var(--warn)}
+.dc[data-v="0"]{background:var(--signal-soft);border-color:var(--signal);color:var(--signal)}
+.dc:disabled{cursor:default}
+.dc.ro{border-style:dashed}
+.days tr.sumrow td{font-size:12px;color:var(--muted);text-align:center;font-weight:600}
+.windows{display:grid;gap:8px}
+.win{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg)}
+.win.best{border-color:var(--good);background:var(--good-soft)}
+.win.chosen{border-color:var(--good);box-shadow:0 0 0 2px var(--good)}
+.win h3{font-size:18px}
+.win .who{display:flex;flex-wrap:wrap;gap:4px;font-size:12px;margin-top:3px}
+.pchip{border-radius:4px;padding:1px 6px;font-weight:600;background:var(--sunk);color:var(--muted)}
+.pchip.ja{background:var(--good-soft);color:var(--good)}
+.pchip.vielleicht{background:var(--gold-soft);color:var(--warn)}
+.pchip.nein{background:var(--signal-soft);color:var(--signal);text-decoration:line-through}
+.win .flags{grid-column:1/-1;font-size:12px;color:var(--muted)}
+
+/* Planen: Häuser */
+.hgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.hgrid{grid-template-columns:1fr}}
+.house{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:8px;background:var(--surface);min-width:0;align-content:start}
+.house.booked{border-color:var(--good);box-shadow:0 0 0 2px var(--good-soft)}
+.house h3{font-size:19px;overflow-wrap:anywhere}
+.house .meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;color:var(--muted)}
+.house .meta b{color:var(--ink);font-weight:700}
+.house p{margin:0;font-size:14px;overflow-wrap:anywhere}
+.house .hfoot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+form.hform{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:700px){form.hform{grid-template-columns:repeat(2,minmax(0,1fr))}}
+form.hform label{display:grid;gap:3px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+form.hform label.wide{grid-column:span 2}
+form.hform label.full{grid-column:1/-1}
+form.hform input,form.hform select,form.hform textarea{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-weight:500;width:100%;min-width:0}
+form.hform textarea{min-height:56px;resize:vertical}
+.searchlinks{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;align-items:baseline}
+.searchlinks b{font-weight:700}
+
+.foot{font-size:13px;color:var(--muted);max-width:90ch;display:grid;gap:6px}
+.foot p{margin:0}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px);z-index:20}
+
+@media (max-width:1100px){
+  .board-head{display:none}
+  .row{grid-template-columns:34px minmax(0,1fr);grid-template-areas:"rank name" "rank score" "rank stats" "rank actions";row-gap:10px}
+  .rank{grid-area:rank;align-self:start}
+  .name{grid-area:name}
+  .actions{grid-area:actions;justify-content:space-between}
+  .score{grid-area:score}
+  .stats{grid-area:stats;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px 8px}
+  .stats .wide{grid-column:span 2}
+  .lbl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+  .more{grid-column:1/-1}
+}
+@media (max-width:560px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}.row{padding:12px}}
+@media (min-width:1101px){.stats{display:contents}}
+@media (prefers-reduced-motion:no-preference){.bar span{transition:width .35s ease}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Herbstferien NRW · 23.10.–6.11.2027 · aus Leverkusen, Herten und Kelkheim · 6 Erwachsene mit Alessa und Thea</div>
+      <h1>Mosel-Planer</h1>
+    </div>
+    <span class="status" id="status"><i></i><span>Verbinde …</span></span>
+  </header>
+
+  <section class="planbar" id="planbar" aria-label="Stand der Planung"></section>
+
+  <section class="me" id="mebox" aria-label="Wer bist du?">
+    <span class="q" id="meQ">Wer bist du?</span>
+    <div class="chips" id="people"></div>
+    <span class="hint">Wird auf diesem Gerät gemerkt und bestimmt, für wen deine Stimmen zählen.</span>
+  </section>
+
+  <details class="panel fold guide" id="guide">
+    <summary><h2>So funktioniert’s</h2><span class="hint">Anleitung &amp; Symbole</span></summary>
+    <div style="display:grid;gap:16px">
+      <div class="guide-grid">
+        <div>
+          <h3>In fünf Schritten</h3>
+          <ol>
+            <li><b>Namen wählen:</b> Oben auf deinen Namen tippen. Das Gerät merkt sich das.</li>
+            <li><b>Swipen:</b> Orte und Ausflüge bewerten: rechts = gerne, oben = Top-Favorit, links = lieber nicht.</li>
+            <li><b>Orte:</b> Unter „Anreise“ deinen Startort prüfen. Mit „Was ist euch wichtig?“ verschiebt ihr die Punkte für alle. „+“ öffnet Details, Ferienhaus-Suche und „Als Ziel festlegen“.</li>
+            <li><b>Planen:</b> Freie Tage eintragen, die App sucht den Zeitraum, an dem alle können. Gefundene Ferienhäuser mit Link sammeln und bewerten.</li>
+            <li><b>Stimmen:</b> Dort seht ihr Matches (alle sechs dafür), Fast-Matches und alles mit einem Nein.</li>
+          </ol>
+        </div>
+        <div>
+          <h3>Stimmen</h3>
+          <dl class="sym">
+            <dt><span class="v v2">♥♥</span></dt><dd>Top-Favorit, zählt +2</dd>
+            <dt><span class="v v1">♥</span></dt><dd>Gerne, zählt +1</dd>
+            <dt><span class="v vn">✕</span></dt><dd>Lieber nicht, zählt −1</dd>
+            <dt><span class="kbd">⤼</span><span class="kbd">↶</span></dt><dd>Beim Swipen: überspringen · letzte Stimme rückgängig</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="guide-grid">
+        <div>
+          <h3>Skalen</h3>
+          <dl class="sym">
+            <dt id="gDots"></dt><dd>Einschätzung 1–5 (hier 3 von 5) für Wein, Kinder, Wandern, Kultur, Ruhe und Ferienhaus-Angebot. Blau = erfüllt.</dd>
+            <dt id="gEur"></dt><dd>Preisniveau der Unterkünfte (hier 1 von 3 = günstig)</dd>
+            <dt><b class="num" style="font-family:var(--display);font-size:18px">71</b></dt><dd>Punkte 0–100 nach eurer Gewichtung, bestimmen den Rang</dd>
+          </dl>
+        </div>
+        <div>
+          <h3>Weitere Zeichen</h3>
+          <dl class="sym">
+            <dt><span class="ostate ja">offen</span><span class="ostate teils">eingeschr.</span></dt><dd>Hat das Ausflugsziel Ende Oktober geöffnet?</dd>
+            <dt>Anreise</dt><dd>Gewertet wird die längste Fahrt der sechs. Richtwerte ohne Stau.</dd>
+            <dt>Ausflüge nah</dt><dd>Ausflugsziele höchstens 30 Autominuten vom Ort entfernt</dd>
+            <dt><span class="mini-pin"></span><span class="mini-dia"></span></dt><dd>Karte: Kreis = Ort (Zahl = Rang), Raute = Ausflug, roter Ring = hat Herzen</dd>
+          </dl>
+        </div>
+      </div>
+      <button class="btn" type="button" id="guideOk" style="justify-self:start">Verstanden, einklappen</button>
+    </div>
+  </details>
+
+  <nav class="tabs" role="tablist" aria-label="Ansichten">
+    <button type="button" role="tab" data-tab="swipe" id="t-swipe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="12" height="16" rx="2" transform="rotate(-8 11 11)"/><path d="M20 8l1 9"/></svg>Swipen</button>
+    <button type="button" role="tab" data-tab="list" id="t-list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></svg>Orte</button>
+    <button type="button" role="tab" data-tab="map" id="t-map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20c3-1 3-5 6-6s5 3 7 0 0-6 3-9"/><circle cx="17" cy="14" r="1.6"/></svg>Karte</button>
+    <button type="button" role="tab" data-tab="plan" id="t-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 15l2.5 2.5L16 13"/></svg>Planen</button>
+    <button type="button" role="tab" data-tab="votes" id="t-votes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z"/></svg>Stimmen</button>
+  </nav>
+
+  <!-- SWIPEN -->
+  <section class="tabpane" id="p-swipe" role="tabpanel" aria-labelledby="t-swipe">
+    <div class="swipe">
+      <div class="seg" role="group" aria-label="Was bewerten?">
+        <button type="button" data-deck="orte">Orte</button>
+        <button type="button" data-deck="aus">Ausflüge</button>
+      </div>
+      <div class="swipe-top">
+        <div class="progress"><div class="hint" id="swProg"></div><div class="bar"><span id="swBar" style="width:0"></span></div></div>
+        <button class="chip" type="button" id="swAll" aria-pressed="false">Bewertete nochmal zeigen</button>
+      </div>
+      <div class="deck" id="deck"></div>
+      <div class="swipe-btns">
+        <button class="sb small" type="button" id="swUndo" aria-label="Rückgängig" title="Rückgängig">↶</button>
+        <button class="sb no" type="button" data-sw="-1" aria-label="Lieber nicht" title="Lieber nicht (←)">✕</button>
+        <button class="sb top2" type="button" data-sw="2" aria-label="Top-Favorit" title="Top-Favorit (↑)">♥♥</button>
+        <button class="sb yes" type="button" data-sw="1" aria-label="Gerne" title="Gerne (→)">♥</button>
+        <button class="sb small" type="button" id="swSkip" aria-label="Überspringen" title="Überspringen">⤼</button>
+      </div>
+      <p class="swipe-help">Nach rechts wischen = gerne · nach oben = Top-Favorit · nach links = lieber nicht. Am Computer gehen auch die Pfeiltasten.</p>
+    </div>
+  </section>
+
+  <!-- ORTE -->
+  <section class="tabpane" id="p-list" role="tabpanel" aria-labelledby="t-list" hidden>
+    <details class="route fold" id="routeFold">
+      <summary><h2>Anreise</h2><span class="hint" id="routeSum"></span></summary>
+      <div style="display:grid;gap:12px">
+        <div class="origins" id="origins"></div>
+        <p class="hint">Jeder stellt seinen Startort ein. Gewertet wird die längste Fahrt, damit niemand ewig unterwegs ist. Fahrzeiten sind Richtwerte ohne Stau.</p>
+      </div>
+    </details>
+    <div class="desk">
+      <details class="panel fold" id="wFold">
+        <summary><h2>Was ist euch wichtig?</h2></summary>
+        <div style="display:grid;gap:10px">
+          <div class="weights" id="weights"></div>
+          <p class="hint">0 = egal, 5 = sehr wichtig. Gilt für alle sechs. „Eure Lieblings-Ausflüge nah“ zählt eure Herzen bei den Ausflügen: je näher am Ort, desto mehr. <button class="linkbtn" id="resetW" type="button">Auf Standard setzen</button></p>
+        </div>
+      </details>
+      <details class="panel fold" id="fFold">
+        <summary><h2>Filter</h2><span class="hint" id="filterSum"></span></summary>
+        <div class="filters">
+          <div class="chips" id="secs" role="group" aria-label="Abschnitte"></div>
+          <div class="rangeline"><label for="maxDrive">Längste Anreise höchstens</label><b class="num" id="maxDriveV"></b><input id="maxDrive" type="range" min="90" max="300" step="15"></div>
+          <div class="chips">
+            <button class="chip" type="button" id="onlyFav" aria-pressed="false">♥ Nur mit Herzen</button>
+            <button class="chip" type="button" id="showOut" aria-pressed="false">Gestrichene zeigen</button>
+          </div>
+          <p class="hint">Filter gelten nur für dich.</p>
+        </div>
+      </details>
+    </div>
+    <div class="panel-head"><h2>Rangliste der Orte</h2>
+      <label class="field" for="sortSel">Sortieren <select id="sortSel" class="chip" style="padding:5px 8px">
+        <option value="score">Punkte</option><option value="votes">Stimmen</option><option value="drive">Anreise</option><option value="wein">Wein</option><option value="kids">Kinder</option><option value="hike">Wandern</option><option value="culture">Kultur</option><option value="quiet">Ruhe</option><option value="houses">Ferienhäuser</option><option value="price">Preis</option><option value="near">Ausflüge nah</option><option value="name">Name</option>
+      </select></label>
+      <span class="hint" id="count"></span>
+    </div>
+    <div class="board-head" id="bhead">
+      <span>#</span><button type="button" data-sort="name">Ort</button><button type="button" data-sort="score">Punkte</button>
+      <button type="button" data-sort="drive">Anreise</button><button type="button" data-sort="wein">Wein</button><button type="button" data-sort="kids">Kinder</button><button type="button" data-sort="hike">Wandern</button><button type="button" data-sort="culture">Kultur</button><button type="button" data-sort="quiet">Ruhe</button><button type="button" data-sort="houses">Häuser</button><button type="button" data-sort="price">Preis</button><button type="button" data-sort="near">Ausfl. nah</button><button type="button" data-sort="votes" style="text-align:right">Deine Stimme</button>
+    </div>
+    <div id="rows" class="board"></div>
+    <details class="outs" id="outs"><summary id="outsum">Gestrichen</summary><div class="outlist" id="outlist"></div></details>
+  </section>
+
+  <!-- KARTE -->
+  <section class="tabpane" id="p-map" role="tabpanel" aria-labelledby="t-map" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Karte</h2>
+        <div class="btnrow">
+          <div class="seg" role="group" aria-label="Kartenausschnitt">
+            <button type="button" data-view="mosel">Mosel</button>
+            <button type="button" data-view="all">Mit Anreise</button>
+          </div>
+          <button class="chip" type="button" id="showOrte" aria-pressed="true">Orte</button>
+          <button class="chip" type="button" id="showAus" aria-pressed="true">Ausflüge</button>
+        </div>
+      </div>
+      <div class="map-wrap" id="mapwrap"><svg id="map" role="img" aria-label="Karte der Mosel mit Orten und Ausflugszielen"></svg><div class="ttip" id="ttip" hidden></div></div>
+      <div class="map-legend">
+        <span><i style="background:var(--accent)"></i>Ort, Zahl = Rang</span>
+        <span><i class="dia" style="background:var(--gold)"></i>Ausflug</span>
+        <span><i style="background:transparent;border:2px solid var(--signal)"></i>hat Herzen</span>
+        <span><i style="background:transparent;border:2px solid var(--good)"></i>euer Ziel</span>
+        <span><i style="background:var(--muted);opacity:.45"></i>gestrichen oder ausgefiltert</span>
+      </div>
+      <p class="hint">Tippe auf einen Ort, um ihn in der Rangliste zu öffnen, oder auf eine Raute für die Details zum Ausflug. Die Filter aus „Orte“ gelten auch hier.</p>
+      <div id="mapSel"></div>
+    </div>
+  </section>
+
+  <!-- PLANEN -->
+  <section class="tabpane" id="p-plan" role="tabpanel" aria-labelledby="t-plan" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Wann fahren wir?</h2>
+        <label class="field" for="nights">Wie viele Nächte? <select id="nights" class="chip" style="padding:5px 8px"></select></label>
+      </div>
+      <p class="hint">Trag in deiner Zeile ein, an welchen Ferientagen du kannst. Tippen wechselt: <b>✓</b> kann · <b>?</b> vielleicht · <b>✕</b> kann nicht · leer = noch offen. Die Zahl der Nächte gilt für alle.</p>
+      <div class="btnrow" id="myDayBtns"></div>
+      <div class="daygrid-wrap"><table class="days" id="days"></table></div>
+      <p class="hint">• So 31.10. Zeitumstellung · Mo 1.11. Allerheiligen, Feiertag in NRW und Rheinland-Pfalz</p>
+      <h3 style="font-size:19px">Beste Zeiträume</h3>
+      <div class="windows" id="windows"></div>
+      <div class="callout" id="season"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Ferienhäuser</h2><span class="hint" id="hcount"></span></div>
+      <p class="hint">Gefunden, was passt? Link einfügen, alle können es mit ♥ oder ✕ bewerten. Für acht Personen braucht ihr mindestens vier Schlafzimmer.</p>
+      <div class="searchlinks" id="searchlinks"></div>
+      <details class="fold" id="hFold">
+        <summary><b>Haus hinzufügen</b></summary>
+        <form class="hform" id="hform" autocomplete="off">
+          <label class="full" for="hName">Name oder Titel<input id="hName" maxlength="80" required placeholder="z. B. Winzerhaus am Moselufer"></label>
+          <label class="wide" for="hUrl">Link<input id="hUrl" type="url" maxlength="400" placeholder="https://…"></label>
+          <label class="wide" for="hOrt">Ort<select id="hOrt"></select></label>
+          <label for="hPrice">Preis gesamt (€)<input id="hPrice" type="number" min="0" max="20000" step="10" inputmode="numeric"></label>
+          <label for="hNights">Nächte<input id="hNights" type="number" min="1" max="14" step="1" inputmode="numeric"></label>
+          <label for="hRooms">Schlafzimmer<input id="hRooms" type="number" min="1" max="12" step="1" inputmode="numeric"></label>
+          <label for="hBeds">Betten / Plätze<input id="hBeds" type="number" min="1" max="30" step="1" inputmode="numeric"></label>
+          <label class="full" for="hNote">Notiz<textarea id="hNote" maxlength="300" placeholder="z. B. Sauna, Garten, Storno bis 4 Wochen vorher"></textarea></label>
+          <div class="btnrow" style="grid-column:1/-1"><button class="btn primary" type="submit" id="hSubmit">Haus speichern</button><span class="hint" id="hMsg"></span></div>
+        </form>
+      </details>
+      <div class="hgrid" id="houses"></div>
+    </div>
+  </section>
+
+  <!-- STIMMEN -->
+  <section class="tabpane" id="p-votes" role="tabpanel" aria-labelledby="t-votes" hidden>
+    <div class="seg" role="group" aria-label="Stimmen für" style="align-self:flex-start">
+      <button type="button" data-vt="orte">Orte</button>
+      <button type="button" data-vt="aus">Ausflüge</button>
+    </div>
+    <div class="peoplegrid" id="pgrid"></div>
+    <div class="buckets" id="buckets"></div>
+    <div id="voteSel"></div>
+    <div class="panel">
+      <div class="panel-head"><h2 id="mxTitle">Alle Stimmen</h2>
+        <button class="chip" type="button" id="mxAll" aria-pressed="false">Auch ohne Stimmen zeigen</button>
+      </div>
+      <div class="legend"><span><span class="v v2">♥♥</span> Top-Favorit (2)</span><span><span class="v v1">♥</span> Gerne (1)</span><span><span class="v vn">✕</span> Lieber nicht (−1)</span><span>· = noch nicht bewertet</span></div>
+      <div id="matrix"></div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <p><b>Fahrzeiten:</b> berechnet mit OSRM auf OpenStreetMap-Daten, plus 12 % Puffer, ohne Stau. <b>Ausflüge:</b> Öffnungszeiten und Preise recherchiert am <span id="infoDate"></span>, meist Stand 2026. Für 2027 vor dem Besuch auf der verlinkten Seite prüfen.</p>
+    <p><b>Einschätzungen 1–5</b> für Wein, Kinder, Wandern, Kultur, Ruhe und Ferienhaus-Angebot sind grobe Richtwerte zum Vergleichen. <b>Ferien:</b> Herbstferien NRW 23.10.–6.11.2027 laut veröffentlichter Ferienliste.</p>
+    <p><b>Karte:</b> Mosel © OpenStreetMap-Mitwirkende (ODbL), Rhein, Saar und Sauer nach Natural Earth, Ländergrenzen nach DIVA-GIS, vereinfacht.</p>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const PEOPLE = ["Jonathan","Nicole","Dennis","Hanna","Anni","Olaf"];
+const NP = PEOPLE.length;
+const DEF_ORIGIN = {Jonathan:"leverkusen",Nicole:"leverkusen",Dennis:"herten",Hanna:"herten",Anni:"kelkheim",Olaf:"kelkheim"};
+const KIDS = [{n:"Alessa", with:["Jonathan","Nicole"]},{n:"Thea", with:["Anni","Olaf"]}];
+const withKids = names => names.concat(KIDS.filter(k => k.with.some(p => names.includes(p))).map(k => k.n));
+/*@DATA@*/
+const SEC = {unter:"Terrassenmosel", mittel:"Mittelmosel", trier:"Trier, Saar & Obermosel"};
+const CAT = {burg:"Burg", natur:"Natur & Aussicht", wein:"Wein", park:"Freizeitpark & Tiere", stadt:"Stadt & Museum", wasser:"Schiff & Bad"};
+// [id, Name, Abschnitt, Untertitel, Wein, Kinder, Wandern, Kultur, Ruhe, Ferienhäuser für 8, Preis 1-3, Wikipedia-Artikel, Notiz]
+const RAW = [
+["winningen","Winningen","unter","Weinort vor den Toren von Koblenz",4,3,4,3,3,3,2,"Winningen","Erster Weinort hinter Koblenz mit steilen Terrassenlagen wie dem Uhlen. Festung Ehrenbreitstein und Seilbahn sind schnell erreicht."],
+["kobern","Kobern-Gondorf","unter","Zwei Burgen und Matthiaskapelle",3,3,4,4,3,2,2,"Kobern-Gondorf","Traumpfad Koberner Burgpfad direkt am Ort. Gute Lage zwischen Koblenz und Burg Eltz."],
+["alken","Alken","unter","Weindorf unter Burg Thurant",3,2,4,4,4,2,2,"Alken (Mosel)","Kleines Weindorf unter der Doppelburg Thurant. Ruhig, wenig Gastronomie und Einkauf."],
+["moselkern","Moselkern","unter","Zu Fuß zur Burg Eltz",2,3,5,4,5,2,1,"Moselkern","Von hier wandert ihr in gut einer Stunde durchs Elzbachtal zur Burg Eltz. Sehr ruhig, kaum Läden."],
+["treis","Treis-Karden","unter","Stiftskirche, Bahnhof, zwei Ortsteile",3,3,4,3,4,3,1,"Treis-Karden","Günstiger als Cochem und mit Bahnhof. Burg Eltz und Cochem liegen beide in der Nähe."],
+["cochem","Cochem","unter","Reichsburg, Sesselbahn, Schiffe",4,5,4,5,1,4,3,"Cochem","Das Zentrum der Terrassenmosel: Reichsburg, Sesselbahn, Schiffsanleger, Hallenbad und der Freizeitpark Klotten gleich nebenan. In den Ferien voll."],
+["ernst","Ernst","unter","Winzerdorf neben Cochem",4,4,3,2,4,5,2,"Ernst (Mosel)","Weindorf drei Kilometer von Cochem mit vielen Ferienwohnungen bei Winzern. Abends ruhig, Cochem trotzdem nah."],
+["beilstein","Beilstein","unter","Das Dornröschen der Mosel",4,2,3,4,3,2,3,"Beilstein (Mosel)","Winzig und sehr malerisch mit Burgruine Metternich. Tagsüber Ausflugsgäste, wenig Platz für eine Gruppe von acht."],
+["ediger","Ediger-Eller","unter","Historischer Ortskern am Calmont",4,2,5,3,4,3,2,"Ediger-Eller","Fachwerk und Weinkeller, Ausgangspunkt für den Calmont-Klettersteig. Der ist für kleine Kinder nichts."],
+["bremm","Bremm","unter","Unter dem Calmont, steilster Weinberg Europas",5,2,5,2,5,2,2,"Bremm","Am Calmont geht es bis zu 65 Grad steil hinauf. Spektakulär zum Wandern, das Dorf selbst ist klein und still."],
+["zell","Zell (Mosel)","mittel","Zeller Schwarze Katz, Zeller Hamm",4,3,4,3,3,4,2,"Zell (Mosel)","Lebendiger Weinort an der großen Schleife Zeller Hamm. Gute Lage für Geierlay und die Therme in Bad Bertrich."],
+["puenderich","Pünderich","mittel","Fachwerk, Fähre, Marienburg",4,3,4,3,4,3,2,"Pünderich","Fachwerkdorf mit Personenfähre. Marienburg und Aussichtsturm Prinzenkopf liegen direkt über dem Ort."],
+["enkirch","Enkirch","mittel","Großes Fachwerkensemble",4,2,4,3,4,3,1,"Enkirch","Eines der größten Fachwerkensembles der Mosel, ruhig und günstig. Wenig Kinderprogramm direkt im Ort."],
+["traben","Traben-Trarbach","mittel","Jugendstil, Buddha-Museum, Therme",4,4,4,5,3,4,2,"Traben-Trarbach","Jugendstilstadt mit historischen Weinkellern, Buddha-Museum und Thermalbad. Auch bei Regen gibt es hier Programm."],
+["kroev","Kröv","mittel","Kröver Nacktarsch, viele Ferienhäuser",4,4,3,2,3,5,1,"Kröv","Viele Ferienhäuser und Ferienparks, familienfreundlich und günstig. Traben-Trarbach liegt gleich nebenan."],
+["uerzig","Ürzig","mittel","Würzgarten, Blick auf die Hochmoselbrücke",5,2,4,2,4,2,2,"Ürzig","Berühmte Steillage Würzgarten auf rotem Sandstein. Klein, ruhig, mit Blick auf die Hochmoselbrücke."],
+["bernkastel","Bernkastel-Kues","mittel","Marktplatz, Burg Landshut, Vinothek",5,3,4,5,1,4,3,"Bernkastel-Kues","Bekanntester Weinort der Mittelmosel: Fachwerk-Marktplatz, Burg Landshut und die große Vinothek im Moselweinmuseum. In den Ferien sehr belebt."],
+["piesport","Piesport","mittel","Goldtröpfchen und römische Kelter",5,2,4,2,5,3,2,"Piesport","Amphitheater-Steillage Goldtröpfchen und eine römische Kelteranlage. Sehr ruhig."],
+["neumagen","Neumagen-Dhron","mittel","Gilt als ältester Weinort Deutschlands",4,3,3,3,4,3,1,"Neumagen-Dhron","Römische Funde und ein Nachbau des Neumagener Weinschiffs. Ruhig und eher günstig."],
+["trittenheim","Trittenheim","mittel","In einer engen Moselschleife",4,2,4,2,5,3,2,"Trittenheim","Liegt in einer engen Schleife. Vom Aussichtspunkt Zummethöhe bei Leiwen seht ihr die ganze Schleife."],
+["leiwen","Leiwen","mittel","Zummethöhe und Ferienparks",4,4,3,2,3,5,1,"Leiwen","Viele große Ferienhäuser und Ferienparks oberhalb der Mosel, gut für Gruppen mit Kindern. Trier ist nah."],
+["trier","Trier","trier","Römerstadt: Porta Nigra, Thermen, Dom",3,4,2,5,1,3,2,"Trier","Älteste Stadt Deutschlands mit Porta Nigra, Kaiserthermen und Amphitheater. Bei Regen die beste Basis, große Häuser eher am Stadtrand."],
+["saarburg","Saarburg","trier","An der Saar: Wasserfall in der Altstadt",3,4,4,3,3,3,2,"Saarburg","Liegt an der Saar, nicht an der Mosel: Wasserfall mitten in der Altstadt, Glockengießerei, Sesselbahn und Rodelbahn."],
+["nittel","Nittel","trier","Obermosel, Kalkfelsen und Elbling",3,2,3,1,5,2,1,"Nittel","Obermosel an der Grenze zu Luxemburg, weiße Kalkfelsen statt Schiefer. Sehr ruhig, weit weg von den Klassikern der Mittelmosel."]
+];
+const R = RAW.map(a => ({id:a[0],name:a[1],sec:a[2],sub:a[3],wein:a[4],kids:a[5],hike:a[6],culture:a[7],quiet:a[8],houses:a[9],price:a[10],wiki:a[11],note:a[12]}));
+const RBY = Object.fromEntries(R.map(r => [r.id, r]));
+const ABY = Object.fromEntries(AUS.map(a => [a.id, a]));
+const CRIT = [
+  {k:"drive",label:"Kurze Anreise"},{k:"kids",label:"Für die Kinder"},
+  {k:"wein",label:"Wein & Winzer"},{k:"hike",label:"Wandern & Aussicht"},
+  {k:"culture",label:"Burgen & Kultur"},{k:"quiet",label:"Ruhe am Abend"},
+  {k:"houses",label:"Ferienhäuser für 8"},{k:"price",label:"Günstig"},
+  {k:"fav",label:"Eure Lieblings-Ausflüge nah"},{k:"rain",label:"Programm bei Regen"}];
+const DEF = {weights:{drive:3,kids:4,wein:3,hike:4,culture:3,quiet:2,houses:5,price:2,fav:4,rain:3},origins:{},nights:4,termin:null,ort:null,house:null};
+const VOTE = {2:"♥♥",1:"♥","-1":"✕"};
+const TABS = ["swipe","list","map","plan","votes"];
+const OIDX = Object.fromEntries(OKEYS.map((k,i) => [k,i]));
+const WD = ["So","Mo","Di","Mi","Do","Fr","Sa"];
+const DAYS = (() => { const out = []; for (let t = Date.UTC(2027,9,23); t <= Date.UTC(2027,10,6); t += 864e5){ const d = new Date(t); out.push({id:d.toISOString().slice(0,10), wd:d.getUTCDay(), d:d.getUTCDate(), m:d.getUTCMonth()+1}); } return out; })();
+const DIDX = Object.fromEntries(DAYS.map((d,i) => [d.id,i]));
+const SPECIAL = {"2027-10-31":"Zeitumstellung","2027-11-01":"Allerheiligen"};
+const MOSEL_VIEW = [220,1235,640,625];
+
+const $ = s => document.querySelector(s);
+const fmt = m => Math.floor(m/60) + ":" + String(Math.round(m%60)).padStart(2,"0") + " h";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const proj = (lat,lon) => [(lon-5.8)*0.643*700, (52.2-lat)*700];
+const addDays = (id, n) => new Date(Date.parse(id+"T00:00:00Z") + n*864e5).toISOString().slice(0,10);
+const dayLbl = id => { const d = new Date(Date.parse(id+"T00:00:00Z")); return `${WD[d.getUTCDay()]} ${d.getUTCDate()}.${d.getUTCMonth()+1}.`; };
+const termLbl = t => t ? `${dayLbl(t.start)}–${dayLbl(addDays(t.start, t.nights))}` : "";
+const mins = t => t <= 5 ? "im Ort" : t + " min";
+const safeUrl = u => { try { const x = new URL(String(u)); return (x.protocol === "https:" || x.protocol === "http:") ? x.href : ""; } catch { return ""; } };
+const host = u => { try { return new URL(u).hostname.replace(/^www\./,""); } catch { return ""; } };
+
+let settings = structuredClone(DEF);
+let marks = {}, avail = {}, houses = [];
+let db = null, readOnly = false;
+let open = null, striking = null, mapSel = null, voteSel = null, delAsk = null;
+let editingSettings = 0;
+const L = (() => { try { return JSON.parse(localStorage.getItem("mosel-ui")||"{}"); } catch { return {}; } })();
+const ui = Object.assign({tab:"swipe",deck:"orte",view:"mosel",showOrte:true,showAus:true,secs:Object.keys(SEC),maxDrive:300,onlyFav:false,showOut:false,sort:"score",dir:-1,me:null,swAll:false,mxAll:false,vt:"orte",guideSeen:false}, L);
+if (!PEOPLE.includes(ui.me)) ui.me = null;
+if (!Array.isArray(ui.secs)) ui.secs = Object.keys(SEC);
+const hashTab = (location.hash||"").slice(1); if (TABS.includes(hashTab)) ui.tab = hashTab;
+if (!TABS.includes(ui.tab)) ui.tab = "swipe";
+const saveUi = () => { try { localStorage.setItem("mosel-ui", JSON.stringify(ui)); } catch {} };
+
+// ---------- Rechnen ----------
+const originOf = n => { const k = (settings.origins||{})[n]; return OIDX[k] !== undefined ? k : DEF_ORIGIN[n]; };
+function driveFor(id){
+  const per = PEOPLE.map(n => ({n, o:originOf(n), t:DRIVE[id][OIDX[originOf(n)]]}));
+  const max = Math.max(...per.map(p => p.t));
+  return {per, max, who: per.filter(p => p.t === max).map(p => p.n)};
+}
+function byOrigin(per){
+  const g = {}; for (const p of per){ (g[p.o] = g[p.o] || {o:p.o, t:p.t, names:[]}).names.push(p.n); }
+  return Object.values(g).sort((a,b) => b.t - a.t);
+}
+function votesOf(mk){
+  const votes = {}; let sum = 0, cnt = 0, pos = 0, neg = 0;
+  for (const n of PEOPLE){ const v = +((mk && mk.votes || {})[n] || 0); votes[n] = v; sum += v; if (v) cnt++; if (v > 0) pos++; if (v < 0) neg++; }
+  return {votes, sum, cnt, pos, neg, mine: ui.me ? votes[ui.me] : 0};
+}
+const prox = t => t <= 20 ? 1 : t >= 60 ? 0 : (60 - t) / 40;
+function scored(){
+  const acts = AUS.map(a => { const mk = marks[a.id] || {}; return {...a, ...votesOf(mk), excluded:!!mk.excluded, reason:mk.reason||""}; });
+  const base = R.map(r => {
+    let fav = 0, rain = 0, near = 0;
+    for (const a of acts){
+      if (a.excluded) continue;
+      const t = AT[r.id][a.id], p = prox(t);
+      fav += (a.sum < 0 ? 0.3 : 1 + a.sum) * p;
+      if (a.indoor) rain += p;
+      if (t <= 30) near++;
+    }
+    return {...r, dr:driveFor(r.id), fav, rain, near};
+  });
+  const keys = {drive:[r=>r.dr.max,1], kids:[r=>r.kids], wein:[r=>r.wein], hike:[r=>r.hike], culture:[r=>r.culture], quiet:[r=>r.quiet], houses:[r=>r.houses], price:[r=>r.price,1], fav:[r=>r.fav], rain:[r=>r.rain]};
+  const rng = {};
+  for (const [k,[f]] of Object.entries(keys)){ const v = base.map(f); rng[k] = [Math.min(...v), Math.max(...v)]; }
+  const nrm = (v,[a,b],inv) => b === a ? 1 : (inv ? (b-v)/(b-a) : (v-a)/(b-a));
+  const w = settings.weights; const tot = CRIT.reduce((s,c) => s + (w[c.k]||0), 0) || 1;
+  const orte = base.map(r => {
+    const s = {}; for (const [k,[f,inv]] of Object.entries(keys)) s[k] = nrm(f(r), rng[k], inv);
+    const score = CRIT.reduce((a,c) => a + (w[c.k]||0) * s[c.k], 0) / tot * 100;
+    const mk = marks[r.id] || {};
+    return {...r, s, score, excluded:!!mk.excluded, reason:mk.reason||"", ...votesOf(mk)};
+  });
+  const order = orte.filter(r => !r.excluded).sort((a,b) => b.score - a.score).map(r => r.id);
+  orte.forEach(r => r.rank = order.indexOf(r.id) + 1);
+  return {orte, acts};
+}
+function filtered(orte){
+  return orte.filter(r => ui.secs.includes(r.sec) && (ui.maxDrive >= 300 || r.dr.max <= ui.maxDrive) && (!ui.onlyFav || r.pos > 0) && (ui.showOut || !r.excluded));
+}
+const topOrt = all => all.orte.filter(r => !r.excluded).sort((a,b) => b.score - a.score)[0];
+
+const dots = (v,max=5) => `<span class="dots" aria-label="${v} von ${max}">${Array.from({length:max},(_,i)=>`<i class="${i<v?"on":""}"></i>`).join("")}</span>`;
+const euros = n => `<span class="eur" aria-label="Preisniveau ${n} von 3">${"€".repeat(n)}<span class="off">${"€".repeat(3-n)}</span></span>`;
+const vcls = v => v===2?"v2":v===1?"v1":v===-1?"vn":"v0";
+const voteBadges = r => PEOPLE.filter(n => r.votes[n]).map(n => { const v = r.votes[n]; return `<span class="badge ${v<0?"veto":"vote"}">${n} ${VOTE[v]}</span>`; }).join("");
+const OSTATE = {ja:"Ende Okt. offen", frei:"immer offen", teils:"eingeschränkt", nein:"Ende Okt. zu"};
+const ostate = a => `<span class="ostate ${a.open}">${OSTATE[a.open]||"unklar"}</span>`;
+const voteBtns = (id, mine) => `<div class="vote" role="group" aria-label="${ui.me ? "Stimme von "+ui.me : "Deine Stimme"}">
+  <button type="button" data-vote="2" data-id="${id}" aria-pressed="${mine===2}" title="Top-Favorit">♥♥</button>
+  <button type="button" data-vote="1" data-id="${id}" aria-pressed="${mine===1}" title="Gerne">♥</button>
+  <button type="button" class="no" data-vote="-1" data-id="${id}" aria-pressed="${mine===-1}" title="Lieber nicht">✕</button></div>`;
+const allBadges = r => { const o = PEOPLE.filter(n => r.votes[n]).map(n => `<span class="badge ${r.votes[n]<0?"veto":"vote"}">${n} ${VOTE[r.votes[n]]}</span>`).join(""); return o ? `<div class="others">${o}</div>` : ""; };
+
+// Kleine Karte: Moselabschnitt rund um einen Punkt, mit 5-km-Maßstab
+function localMap(lat, lon, label, isAus){
+  const [cx,cy] = proj(lat,lon), W = 300, H = 100, x0 = cx - W/2, y0 = cy - H/2;
+  const inView = (x,y) => x > x0 + 6 && x < x0 + W - 6 && y > y0 + 6 && y < y0 + H - 6;
+  const near = R.map(o => { const [x,y] = proj(...GEO[o.id]); return {o,x,y}; }).filter(p => inView(p.x,p.y) && Math.hypot(p.x-cx,p.y-cy) > 8);
+  const lw = 7 + label.length * 5.2;
+  const clash = p => Math.abs(p.y - cy) < 9 && p.x > cx - 4 - p.o.name.length * 3.6 && p.x < cx + lw;
+  const nb = near.map(p => `<circle class="lm-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.8"/>${clash(p) ? "" : `<text class="lm-lab" x="${(p.x+3.2).toFixed(1)}" y="${(p.y+2.2).toFixed(1)}">${esc(p.o.name)}</text>`}`).join("");
+  const sx = cx + 66, sy = y0 + H - 9; // bleibt sichtbar, auch wenn schmale Karten die Seiten abschneiden
+  return `<svg viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <path class="lm-river" d="${MAP.mosel}"/><path class="lm-river thin" d="${MAP.saar}"/><path class="lm-river thin" d="${MAP.rhine}"/>
+    ${nb}
+    <circle class="lm-pin ${isAus?"aus":""}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4.6"/>
+    <text class="lm-me" x="${(cx+7).toFixed(1)}" y="${(cy+3).toFixed(1)}">${esc(label)}</text>
+    <line class="lm-scale" x1="${sx}" x2="${sx+31.5}" y1="${sy}" y2="${sy}"/><line class="lm-scale" x1="${sx}" x2="${sx}" y1="${sy-2}" y2="${sy+2}"/><line class="lm-scale" x1="${sx+31.5}" x2="${sx+31.5}" y1="${sy-2}" y2="${sy+2}"/>
+    <text class="lm-scalet" x="${sx+15.75}" y="${sy-3}" text-anchor="middle">5 km</text></svg>`;
+}
+
+function render(){
+  const all = scored();
+  $("#people").innerHTML = PEOPLE.map(n => `<button class="person" type="button" data-me="${n}" aria-pressed="${ui.me===n}"><b>${n}</b><small>ab ${ONAME[originOf(n)]}</small></button>`).join("");
+  $("#mebox").classList.toggle("ask", !ui.me);
+  $("#mebox").classList.toggle("compact", !!ui.me); $("#meQ").textContent = ui.me ? "Du bist" : "Wer bist du?";
+  for (const t of TABS){ const on = ui.tab === t; $("#t-"+t).setAttribute("aria-selected", String(on)); $("#p-"+t).hidden = !on; }
+  $("#infoDate").textContent = INFO_DATE;
+  renderPlanbar(all);
+  if (ui.tab === "swipe") renderSwipe(all);
+  if (ui.tab === "list") renderList(all);
+  if (ui.tab === "map") renderMap(all);
+  if (ui.tab === "plan") renderPlan(all);
+  if (ui.tab === "votes") renderVotes(all);
+}
+
+function renderPlanbar(all){
+  const t = settings.termin, o = settings.ort && RBY[settings.ort], h = settings.house && houses.find(x => x.id === settings.house);
+  const best = topOrt(all);
+  $("#planbar").innerHTML = `
+    <button type="button" class="ptile ${t?"set":"open"}" data-tabgo="plan"><span>Termin</span><b>${t ? termLbl(t) : "noch offen"}</b><small>${t ? t.nights+" Nächte" : "freie Tage unter „Planen“ eintragen"}</small></button>
+    <button type="button" class="ptile ${o?"set":"open"}" ${o ? `data-goto="${o.id}"` : `data-tabgo="list"`}><span>Ort</span><b>${o ? esc(o.name) : "noch offen"}</b><small>${o ? SEC[o.sec] : best ? "vorne: "+esc(best.name) : ""}</small></button>
+    <button type="button" class="ptile ${h?"set":"open"}" data-tabgo="plan"><span>Ferienhaus</span><b>${h ? esc(h.name) : "noch offen"}</b><small>${h ? (h.price ? Number(h.price).toLocaleString("de-DE")+" € gesamt" : "gebucht") : houses.length ? houses.length+" Vorschläge" : "noch keine Vorschläge"}</small></button>`;
+}
+
+// ---------- Orte / Rangliste ----------
+function renderList(all){
+  const sum = byOrigin(PEOPLE.map(n => ({n, o:originOf(n), t:0})));
+  $("#routeSum").textContent = sum.map(g => `${ONAME[g.o]} (${g.names.length})`).join(" · ");
+  if (!$("#origins").contains(document.activeElement))
+    $("#origins").innerHTML = PEOPLE.map(n => `<label class="${ui.me===n?"mine":""}" for="org-${n}">${n}<select id="org-${n}" data-origin="${n}" ${readOnly?"disabled":""}>${OKEYS.map(k => `<option value="${k}" ${originOf(n)===k?"selected":""}>${ONAME[k]}</option>`).join("")}</select></label>`).join("");
+
+  const wbox = $("#weights");
+  if (!wbox.children.length) wbox.innerHTML = CRIT.map(c => `<div class="w"><label for="w-${c.k}">${c.label}</label><output id="o-${c.k}" for="w-${c.k}"></output><input type="range" id="w-${c.k}" min="0" max="5" step="1" data-w="${c.k}"></div>`).join("");
+  for (const c of CRIT){ const i = $("#w-"+c.k); i.disabled = readOnly; if (document.activeElement !== i) i.value = settings.weights[c.k] ?? 0; $("#o-"+c.k).textContent = settings.weights[c.k] ?? 0; }
+
+  $("#secs").innerHTML = Object.entries(SEC).map(([k,v]) => `<button class="chip" type="button" data-sec="${k}" aria-pressed="${ui.secs.includes(k)}">${v}</button>`).join("");
+  $("#maxDrive").value = ui.maxDrive; $("#maxDriveV").textContent = ui.maxDrive >= 300 ? "egal" : fmt(ui.maxDrive);
+  $("#onlyFav").setAttribute("aria-pressed", ui.onlyFav); $("#showOut").setAttribute("aria-pressed", ui.showOut);
+  const active = (ui.secs.length < 3) + (ui.maxDrive < 300) + ui.onlyFav;
+  $("#filterSum").textContent = active ? `${active} aktiv` : "";
+  $("#sortSel").value = ui.sort;
+
+  const key = {score:r=>r.score,name:r=>r.name,drive:r=>r.dr.max,wein:r=>r.wein,kids:r=>r.kids,hike:r=>r.hike,culture:r=>r.culture,quiet:r=>r.quiet,houses:r=>r.houses,price:r=>r.price,near:r=>r.near,votes:r=>r.sum*10+r.mine}[ui.sort] || (r=>r.score);
+  const list = filtered(all.orte).sort((a,b) => { const x = key(a), y = key(b); return (typeof x === "string" ? x.localeCompare(y,"de") : x - y) * ui.dir || b.score - a.score; });
+  document.querySelectorAll("#bhead [data-sort]").forEach(b => { if (b.dataset.sort === ui.sort) b.setAttribute("aria-sort", ui.dir > 0 ? "ascending" : "descending"); else b.removeAttribute("aria-sort"); });
+  $("#count").textContent = `${list.length} von ${R.length} Orten`;
+
+  $("#rows").innerHTML = list.length ? list.map(r => {
+    const isOpen = open === r.id, goal = settings.ort === r.id;
+    const who = "ab " + [...new Set(r.dr.per.filter(p => p.t === r.dr.max).map(p => ONAME[p.o]))].join(", ");
+    return `<article class="row ${r.mine>0?"is-fav":""} ${goal?"is-goal":""} ${r.excluded?"is-out":""} ${r.rank && r.rank<=3?"top3":""}" id="row-${r.id}">
+      <div class="rank num">${r.excluded ? "–" : r.rank}</div>
+      <div class="name"><h3>${esc(r.name)}</h3><div class="sub">${esc(r.sub)}</div>
+        <div class="badges"><span class="badge">${SEC[r.sec]}</span>${goal?'<span class="badge goal">Unser Ziel</span>':""}${r.excluded?`<span class="badge out">${esc(r.reason||"gestrichen")}</span>`:""}${voteBadges(r)}</div></div>
+      <div class="score"><b class="num">${Math.round(r.score)}</b><div class="bar"><span style="width:${r.score.toFixed(1)}%"></span></div></div>
+      <div class="stats">
+        <div class="cell wide"><span class="lbl">Längste Anreise</span><b class="num">${fmt(r.dr.max)}</b><small>${esc(who)}</small></div>
+        <div class="cell"><span class="lbl">Wein</span>${dots(r.wein)}</div>
+        <div class="cell"><span class="lbl">Kinder</span>${dots(r.kids)}</div>
+        <div class="cell"><span class="lbl">Wandern</span>${dots(r.hike)}</div>
+        <div class="cell"><span class="lbl">Kultur</span>${dots(r.culture)}</div>
+        <div class="cell"><span class="lbl">Ruhe</span>${dots(r.quiet)}</div>
+        <div class="cell"><span class="lbl">Häuser für 8</span>${dots(r.houses)}</div>
+        <div class="cell"><span class="lbl">Preis</span>${euros(r.price)}</div>
+        <div class="cell"><span class="lbl">Ausflüge nah</span><b class="num">${r.near}</b><small>≤ 30 min</small></div>
+      </div>
+      <div class="actions">${voteBtns(r.id, r.mine)}
+        <button class="ib" type="button" data-open="${r.id}" aria-expanded="${isOpen}" aria-label="Details zu ${esc(r.name)}">${isOpen?"−":"+"}</button></div>
+      ${isOpen ? moreHtml(r, all.acts) : ""}
+    </article>`;
+  }).join("") : `<div class="empty">Kein Ort passt zu den Filtern. Erhöhe die maximale Anreise oder wähle mehr Abschnitte.</div>`;
+
+  const outs = all.orte.filter(r => r.excluded);
+  $("#outsum").textContent = `Gestrichen (${outs.length})`;
+  $("#outlist").innerHTML = outs.length ? outs.map(r => `<div class="outitem"><div><b>${esc(r.name)}</b> <span>${esc(r.reason||"")}</span></div><button class="btn" type="button" data-restore="${r.id}">Wieder aufnehmen</button></div>`).join("")
+    : `<span class="hint">Noch nichts gestrichen. Öffne einen Ort mit + und wähle „Streichen“.</span>`;
+}
+function moreHtml(r, acts){
+  const goal = settings.ort === r.id;
+  const groups = byOrigin(r.dr.per);
+  const na = acts.filter(a => !a.excluded).map(a => ({a, t:AT[r.id][a.id]})).sort((x,y) => x.t - y.t).slice(0, 8);
+  return `<div class="more">
+    <p>${esc(r.note)} <a href="https://de.wikipedia.org/wiki/${encodeURIComponent(r.wiki.replace(/ /g,"_"))}" target="_blank" rel="noopener">Wikipedia</a></p>
+    <div class="trip">
+      <div><span class="lbl">Anreise pro Startort</span><ul>${groups.map(g => `<li><span>${ONAME[g.o]} <small class="hint">${withKids(g.names).join(", ")}</small></span><span class="num"><b>${fmt(g.t)}</b></span></li>`).join("")}</ul></div>
+      <div><span class="lbl">Nächste Ausflüge mit dem Auto</span><ul>${na.map(x => `<li><span>${x.a.pos?'<span class="v v1">♥</span> ':""}<button class="linkbtn" type="button" data-asel="${x.a.id}">${esc(x.a.name)}</button></span><span class="num">${mins(x.t)}</span></li>`).join("")}</ul></div>
+      <div><span class="lbl">Ferienhaus suchen</span>${searchLinksHtml(r.name)}</div>
+    </div>
+    <div class="btnrow">${goal ? `<button class="btn" type="button" data-goal="">Ziel wieder offen lassen</button>` : `<button class="btn good" type="button" data-goal="${r.id}" ${readOnly?"disabled":""}>Als Ziel festlegen</button>`}</div>
+    ${strikeHtml(r)}
+  </div>`;
+}
+function strikeHtml(r){
+  return r.excluded ? `<div class="strike"><span>Gestrichen: ${esc(r.reason||"ohne Grund")}</span><button class="btn" type="button" data-restore="${r.id}">Wieder aufnehmen</button></div>`
+    : striking === r.id ? `<div class="strike"><input id="reason-${r.id}" aria-label="Grund" value="Kennen wir schon" maxlength="80"><button class="btn danger" type="button" data-confirm="${r.id}">Für alle streichen</button><button class="btn" type="button" data-cancel>Abbrechen</button></div>`
+    : `<div class="strike"><button class="btn" type="button" data-strike="${r.id}" ${readOnly?"disabled":""}>Streichen …</button></div>`;
+}
+function stayDates(){
+  const t = settings.termin || {start:"2027-10-23", nights:settings.nights || 4};
+  return {ci:t.start, co:addDays(t.start, t.nights), nights:t.nights, fixed:!!settings.termin};
+}
+function searchUrls(place){
+  const {ci, co} = stayDates(), q = encodeURIComponent(place + ", Deutschland");
+  return {
+    airbnb:`https://www.airbnb.de/s/${q}/homes?adults=6&children=2&checkin=${ci}&checkout=${co}&min_bedrooms=4`,
+    booking:`https://www.booking.com/searchresults.de.html?ss=${q}&checkin=${ci}&checkout=${co}&group_adults=8&no_rooms=1&group_children=0`,
+    google:`https://www.google.com/search?q=${encodeURIComponent("Ferienhaus 8 Personen "+place+" Mosel")}`};
+}
+function searchLinksHtml(place){
+  const u = searchUrls(place), {ci, co} = stayDates();
+  return `<div class="searchlinks"><a href="${u.airbnb}" target="_blank" rel="noopener">Airbnb</a><a href="${u.booking}" target="_blank" rel="noopener">Booking</a><a href="${u.google}" target="_blank" rel="noopener">Google</a></div>
+    <small class="hint">${dayLbl(ci)}–${dayLbl(co)}${settings.termin ? "" : " (Beispiel, bis ein Termin feststeht)"}</small>`;
+}
+
+// ---------- Swipen ----------
+let skipped = [];
+let undoStack = [];
+let drag = null, flying = false, deckKey = "";
+const deckItems = all => ui.deck === "aus" ? all.acts : all.orte;
+function swipeQueue(all){
+  const q = deckItems(all).filter(r => !r.excluded && (ui.swAll || !r.mine));
+  const sc = ui.deck === "aus" ? (r => -AUS.indexOf(ABY[r.id])) : (r => r.score);
+  return q.sort((a,b) => skipped.indexOf(a.id) - skipped.indexOf(b.id) || sc(b) - sc(a));
+}
+function othersHtml(r){
+  const o = PEOPLE.filter(n => n !== ui.me && r.votes[n]).map(n => `<span class="badge ${r.votes[n]<0?"veto":"vote"}">${n} ${VOTE[r.votes[n]]}</span>`).join("");
+  return o ? `<div class="others">${o}</div>` : "";
+}
+function cardHtml(r, cls){
+  const stamps = cls === "top" ? `<span class="stamp yes">GERNE</span><span class="stamp no">NÖ</span><span class="stamp top2">TOP ♥♥</span>` : "";
+  if (ui.deck === "aus"){
+    return `<article class="card ${cls}" data-id="${r.id}" aria-label="${esc(r.name)}">
+      <div class="hero">${localMap(r.lat, r.lon, r.town.split(/[,/]/)[0].trim(), true)}<span class="catpill">${CAT[r.cat]||""}</span></div>
+      <div class="body">
+        <div><h3>${esc(r.name)}</h3><div class="sub">${esc(r.town)}</div></div>
+        <div class="facts">
+          <div class="fact"><span>Ende Oktober</span>${ostate(r)}</div>
+          <div class="fact"><span>Dauer</span><b class="num" style="font-size:16px">${esc(r.dur)}</b></div>
+          <div class="fact"><span>Für Kinder</span>${dots(r.kids)}</div>
+          <div class="fact" style="grid-column:span 2"><span>Preis</span><small style="font-size:13px;color:var(--ink)">${esc(r.price)}</small></div>
+          <div class="fact"><span>Bei Regen</span><b style="font-size:16px">${r.indoor ? "drinnen" : "draußen"}</b></div>
+        </div>
+        <p class="note">${esc(r.note)}</p>
+        <p class="hint">${esc(r.season)}</p>
+        ${othersHtml(r)}
+      </div>${stamps}</article>`;
+  }
+  return `<article class="card ${cls}" data-id="${r.id}" aria-label="${esc(r.name)}">
+    <div class="hero">${localMap(...GEO[r.id], r.name, false)}<span class="rankpill num">#${r.rank}</span><span class="scorepill num">${Math.round(r.score)} Pkt.</span></div>
+    <div class="body">
+      <div><h3>${esc(r.name)}</h3><div class="sub">${esc(r.sub)} · ${SEC[r.sec]}</div></div>
+      <div class="facts">
+        <div class="fact"><span>Anreise max.</span><b class="num">${fmt(r.dr.max)}</b></div>
+        <div class="fact"><span>Ausflüge nah</span><b class="num">${r.near}</b> <small>≤ 30 min</small></div>
+        <div class="fact"><span>Preis</span>${euros(r.price)}</div>
+        <div class="fact"><span>Wein</span>${dots(r.wein)}</div>
+        <div class="fact"><span>Kinder</span>${dots(r.kids)}</div>
+        <div class="fact"><span>Wandern</span>${dots(r.hike)}</div>
+        <div class="fact"><span>Kultur</span>${dots(r.culture)}</div>
+        <div class="fact"><span>Ruhe</span>${dots(r.quiet)}</div>
+        <div class="fact"><span>Häuser für 8</span>${dots(r.houses)}</div>
+      </div>
+      <p class="note">${esc(r.note)}</p>
+      ${othersHtml(r)}
+    </div>${stamps}</article>`;
+}
+function renderSwipe(all){
+  document.querySelectorAll("[data-deck]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.deck === ui.deck)));
+  const items = deckItems(all).filter(r => !r.excluded);
+  const total = items.length, done = items.filter(r => r.mine).length;
+  const what = ui.deck === "aus" ? "Ausflüge" : "Orte";
+  $("#swProg").textContent = ui.me ? `${ui.me}: ${done} von ${total} ${what} bewertet` : "Wähle oben, wer du bist";
+  $("#swBar").style.width = (total ? done/total*100 : 0) + "%";
+  $("#swAll").setAttribute("aria-pressed", ui.swAll);
+  $("#swUndo").disabled = !undoStack.length;
+  if (drag || flying) return;
+  const q = swipeQueue(all);
+  const key = ui.deck + ui.me + q.slice(0,2).map(r => r.id+":"+r.mine+":"+Math.round(r.score||0)+":"+JSON.stringify(r.votes)).join("|");
+  if (key === deckKey && $("#deck").children.length) return;
+  deckKey = key;
+  document.querySelectorAll("[data-sw],#swSkip").forEach(b => b.disabled = !q.length || !ui.me);
+  if (!ui.me){ $("#deck").innerHTML = `<div class="done"><div><h3>Wer bist du?</h3><p class="hint">Wähle oben deinen Namen, dann geht es los.</p></div></div>`; return; }
+  if (!q.length){
+    const other = ui.deck === "aus" ? "orte" : "aus";
+    $("#deck").innerHTML = `<div class="done"><div><h3>Alle ${what} bewertet!</h3><p class="hint">Unter „Stimmen“ seht ihr, wo ihr euch einig seid. Mit „Bewertete nochmal zeigen“ kannst du deine Stimmen ändern.</p><p class="btnrow" style="justify-content:center"><button class="btn primary" type="button" data-deck="${other}">Weiter mit ${other === "aus" ? "Ausflügen" : "Orten"}</button><button class="btn" type="button" data-tabgo="votes">Zu den Stimmen</button></p></div></div>`;
+    return;
+  }
+  $("#deck").innerHTML = (q[1] ? cardHtml(q[1],"under") : "") + cardHtml(q[0],"top");
+}
+function castSwipe(v){
+  const c = $("#deck .card.top"); if (!c || flying) return;
+  if (!ui.me){ toast("Wähle zuerst oben, wer du bist."); return; }
+  if (v !== 0 && readOnly){ toast("Du kannst hier nur lesen."); return; }
+  const id = c.dataset.id;
+  if (v === 0) skipped = skipped.filter(x => x !== id).concat(id);
+  flying = true;
+  const dx = v===1 ? 1 : v===-1 ? -1 : 0, dy = v===2 ? -1 : 0;
+  c.style.transition = reduced() ? "opacity .15s" : "transform .28s ease-in, opacity .28s";
+  c.style.transform = v===0 ? "translateY(40px) scale(.9)" : `translate(${dx*window.innerWidth}px, ${dy*window.innerHeight}px) rotate(${dx*25}deg)`;
+  c.style.opacity = "0";
+  const st = c.querySelector(v===1?".stamp.yes":v===-1?".stamp.no":".stamp.top2"); if (st && v) st.style.opacity = 1;
+  setTimeout(() => {
+    flying = false; deckKey = "";
+    if (v !== 0){
+      const prev = +((marks[id]?.votes||{})[ui.me]||0);
+      undoStack.push({id, prev});
+      setMark(id, {votes:{[ui.me]: v}});
+    }
+    render();
+  }, reduced() ? 160 : 290);
+}
+document.addEventListener("pointerdown", e => {
+  const c = e.target.closest(".card.top"); if (!c || flying || e.button > 0 || e.target.closest("a,button")) return;
+  drag = {c, x0:e.clientX, y0:e.clientY, dx:0, dy:0, pid:e.pointerId};
+  c.setPointerCapture(e.pointerId); c.style.transition = "none";
+});
+document.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  drag.dx = e.clientX - drag.x0; drag.dy = e.clientY - drag.y0;
+  drag.c.style.transform = `translate(${drag.dx}px, ${drag.dy}px) rotate(${drag.dx/18}deg)`;
+  const up = -drag.dy > Math.abs(drag.dx);
+  drag.c.querySelector(".stamp.yes").style.opacity = up ? 0 : Math.max(0, Math.min(1, drag.dx/100));
+  drag.c.querySelector(".stamp.no").style.opacity = up ? 0 : Math.max(0, Math.min(1, -drag.dx/100));
+  drag.c.querySelector(".stamp.top2").style.opacity = up ? Math.max(0, Math.min(1, -drag.dy/100)) : 0;
+});
+function endDrag(e){
+  if (!drag || (e && e.pointerId !== drag.pid)) return;
+  const {c, dx, dy} = drag; drag = null;
+  let v = null;
+  if (-dy > 110 && -dy > Math.abs(dx)) v = 2; else if (dx > 110) v = 1; else if (dx < -110) v = -1;
+  if (v !== null){ castSwipe(v); return; }
+  c.style.transition = "transform .2s"; c.style.transform = "";
+  c.querySelectorAll(".stamp").forEach(s => s.style.opacity = 0);
+}
+document.addEventListener("pointerup", endDrag);
+document.addEventListener("pointercancel", endDrag);
+document.addEventListener("keydown", e => {
+  if (ui.tab !== "swipe" || e.target.closest("input,select,textarea")) return;
+  const k = {ArrowRight:1, ArrowLeft:-1, ArrowUp:2, ArrowDown:0}[e.key];
+  if (k !== undefined){ e.preventDefault(); castSwipe(k); }
+});
+
+// ---------- Ausflug-Detail ----------
+function ausDetail(a, all){
+  const nearO = all.orte.filter(r => !r.excluded).map(r => ({r, t:AT[r.id][a.id]})).sort((x,y) => x.t - y.t).slice(0,4);
+  const url = safeUrl(a.url);
+  return `<div class="adetail">
+    <div class="dhead"><div><span class="eyebrow">${CAT[a.cat]||""} · ${esc(a.town)}</span><h3 style="font-size:22px">${esc(a.name)}</h3></div>
+      <div class="actions">${voteBtns(a.id, a.mine)}<button class="ib" type="button" data-closesel aria-label="Details schließen">✕</button></div></div>
+    <div class="facts">
+      <div class="fact"><span>Ende Oktober</span>${ostate(a)}</div>
+      <div class="fact"><span>Dauer</span><b class="num" style="font-size:16px">${esc(a.dur)}</b></div>
+      <div class="fact"><span>Für Kinder</span>${dots(a.kids)}</div>
+      <div class="fact"><span>Bei Regen</span><b style="font-size:16px">${a.indoor ? "drinnen" : "draußen"}</b></div>
+    </div>
+    <p>${esc(a.note)}</p>
+    <p class="hint"><b>Saison:</b> ${esc(a.season)} · <b>Preis:</b> ${esc(a.price)}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener">${esc(host(url))}</a>` : ""}</p>
+    <p class="hint"><b>Am nächsten:</b> ${nearO.map(x => `${esc(x.r.name)} ${x.t <= 5 ? "(im Ort)" : x.t+" min"}`).join(" · ")}</p>
+    ${allBadges(a)}
+    ${strikeHtml(a)}
+  </div>`;
+}
+
+// ---------- Stimmen ----------
+function renderVotes(all){
+  document.querySelectorAll("[data-vt]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.vt === ui.vt)));
+  const isAus = ui.vt === "aus";
+  const live = (isAus ? all.acts : all.orte).filter(r => !r.excluded);
+  const nm = isAus ? "Ausflüge" : "Orte";
+  $("#pgrid").innerHTML = PEOPLE.map(n => {
+    const vs = live.map(r => r.votes[n]);
+    const c = vs.filter(Boolean).length;
+    const top = live.filter(r => r.votes[n] === 2).map(r => r.name);
+    return `<div class="pcard ${ui.me===n?"mine":""}"><div><h3>${n}</h3><small>ab ${ONAME[originOf(n)]}</small></div>
+      <div class="bar"><span style="width:${live.length ? c/live.length*100 : 0}%"></span></div>
+      <small class="num">${c} von ${live.length} ${nm} bewertet</small>
+      <div class="counts num"><span class="v v2">♥♥ ${vs.filter(v=>v===2).length}</span><span class="v v1">♥ ${vs.filter(v=>v===1).length}</span><span class="v vn">✕ ${vs.filter(v=>v===-1).length}</span></div>
+      ${top.length ? `<small>Top: ${top.map(esc).join(", ")}</small>` : ""}</div>`;
+  }).join("");
+  const go = r => isAus ? `data-asel="${r.id}"` : `data-goto="${r.id}"`;
+  const item = r => `<li><button type="button" ${go(r)}>${esc(r.name)}</button> <small class="num">${r.sum>0?"+":""}${r.sum} · ${PEOPLE.filter(n=>r.votes[n]).map(n=>n+" "+VOTE[r.votes[n]]).join(", ")}</small></li>`;
+  const sc = r => isAus ? 0 : r.score;
+  const matches = live.filter(r => r.pos === NP).sort((a,b) => b.sum - a.sum || sc(b) - sc(a));
+  const close = live.filter(r => r.pos >= 3 && r.neg === 0 && r.pos < NP).sort((a,b) => b.sum - a.sum || sc(b) - sc(a)).slice(0,10);
+  const vetos = live.filter(r => r.neg > 0).sort((a,b) => b.neg - a.neg || a.sum - b.sum);
+  $("#buckets").innerHTML = `
+    <div class="bucket match"><h3>Match: alle sechs dafür</h3>${matches.length ? `<ol>${matches.map(item).join("")}</ol>` : `<p class="hint">Noch nichts, was alle sechs mögen. Swipen hilft.</p>`}</div>
+    <div class="bucket"><h3>Fast: mindestens drei dafür, keiner dagegen</h3>${close.length ? `<ol>${close.map(item).join("")}</ol>` : `<p class="hint">Noch nichts.</p>`}</div>
+    <div class="bucket"><h3>Hat ein Nein</h3>${vetos.length ? `<ul>${vetos.map(item).join("")}</ul>` : `<p class="hint">Noch keine Gegenstimmen.</p>`}</div>`;
+  const sel = isAus && voteSel && all.acts.find(a => a.id === voteSel);
+  $("#voteSel").innerHTML = sel ? ausDetail(sel, all) : "";
+  $("#mxTitle").textContent = isAus ? "Alle Stimmen zu Ausflügen" : "Alle Stimmen zu Orten";
+  $("#mxAll").setAttribute("aria-pressed", ui.mxAll);
+  const rows = live.filter(r => ui.mxAll || r.cnt).sort((a,b) => b.sum - a.sum || b.cnt - a.cnt || sc(b) - sc(a));
+  $("#matrix").innerHTML = rows.length ? `<div class="matrix-wrap"><table class="matrix">
+    <thead><tr><th>${isAus?"Ausflug":"Ort"}</th>${PEOPLE.map(n=>`<th class="${ui.me===n?"mine":""}">${n}</th>`).join("")}<th>Summe</th><th>${isAus?"Ende Okt.":"Punkte"}</th></tr></thead>
+    <tbody>${rows.map(r => `<tr class="${r.pos===NP?"allyes":""}"><td><button class="goto" type="button" ${go(r)}>${esc(r.name)}</button></td>${PEOPLE.map(n => { const v = r.votes[n]; return `<td class="${ui.me===n?"mine":""}"><span class="v ${vcls(v)}">${VOTE[v]||"·"}</span></td>`; }).join("")}<td class="sum num">${r.sum>0?"+":""}${r.sum}</td><td class="num">${isAus ? ostate(r) : Math.round(r.score)}</td></tr>`).join("")}</tbody></table></div>`
+    : `<p class="hint">Noch keine Stimmen. Fang im Tab „Swipen“ an.</p>`;
+}
+
+// ---------- Karte ----------
+function viewBox(){
+  const M = MOSEL_VIEW;
+  if (ui.view !== "all") return M;
+  const pts = [[M[0],M[1]],[M[0]+M[2],M[1]+M[3]], ...[...new Set(PEOPLE.map(originOf))].map(k => proj(...OGEO[k]))];
+  let x0 = Math.min(...pts.map(p=>p[0])) - 60, x1 = Math.max(...pts.map(p=>p[0])) + 150, y0 = Math.min(...pts.map(p=>p[1])) - 50, y1 = Math.max(...pts.map(p=>p[1])) + 30;
+  if (x1 - x0 < (y1 - y0) * 0.8){ const c = (x0+x1)/2, w = (y1-y0)*0.8; x0 = c - w/2; x1 = c + w/2; }
+  return [x0, y0, x1-x0, y1-y0];
+}
+function renderMap(all){
+  const [vx,vy,vw,vh] = viewBox();
+  const u = vw/600;
+  document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === ui.view)));
+  $("#showOrte").setAttribute("aria-pressed", ui.showOrte); $("#showAus").setAttribute("aria-pressed", ui.showAus);
+  const svg = $("#map");
+  svg.setAttribute("viewBox", `${vx} ${vy} ${vw} ${vh}`);
+  const shown = new Set(filtered(all.orte).map(r => r.id));
+  const land = Object.values(MAP.states).map(d => `<path class="land" stroke-width="${0.9*u}" d="${d}"/>`).join("");
+  const rv = (d,w) => `<path class="river" stroke-width="${w*u}" d="${d}"/>`;
+  const rivers = rv(MAP.rhine,3) + rv(MAP.saar,1.6) + rv(MAP.sauer,1.4) + rv(MAP.mosel,2.6);
+  const txt = (cls, la, lo, s, size) => { const [x,y] = proj(la,lo); return `<text class="${cls}" x="${x}" y="${y}" font-size="${size*u}" text-anchor="middle">${s}</text>`; };
+  let labels = txt("reg",50.27,6.95,"Eifel",11) + txt("reg",49.88,7.42,"Hunsrück",11) + txt("reg",49.76,6.37,"Luxemburg",8) + txt("rname",50.47,7.6,"Rhein",10) + txt("rname",49.65,6.6,"Saar",8) + txt("rname",49.96,6.93,"Mosel",10);
+  if (ui.view === "all") labels += txt("reg",51.45,7.6,"Nordrhein-Westfalen",12) + txt("reg",50.62,8.55,"Hessen",12) + txt("reg",49.62,7.62,"Rheinland-Pfalz",11) + txt("reg",50.45,6.0,"Belgien",10);
+  const kob = proj(50.3597,7.5978);
+  labels += `<g class="origin"><rect x="${kob[0]-2.6*u}" y="${kob[1]-2.6*u}" width="${5.2*u}" height="${5.2*u}"/><text x="${kob[0]+5*u}" y="${kob[1]+1*u}" font-size="${9.5*u}" stroke-width="${3*u}" dominant-baseline="central">Koblenz</text></g>`;
+  let og = "";
+  if (ui.view === "all"){
+    const groups = byOrigin(PEOPLE.map(n => ({n, o:originOf(n), t:0})));
+    const goal = settings.ort ? RBY[settings.ort] : topOrt(all);
+    if (goal){ const [gx,gy] = proj(...GEO[goal.id]); og += groups.map(g => { const [x,y] = proj(...OGEO[g.o]); return `<path class="route-line" stroke-width="${1.3*u}" stroke-dasharray="${4*u} ${4*u}" d="M${x} ${y}L${gx} ${gy}"/>`; }).join(""); }
+    og += groups.map(g => { const [x,y] = proj(...OGEO[g.o]); const s = 7*u; return `<g class="origin"><rect x="${x-s/2}" y="${y-s/2}" width="${s}" height="${s}"/><text x="${x+s}" y="${y}" font-size="${12*u}" stroke-width="${3*u}" dominant-baseline="central">${ONAME[g.o]} · ${withKids(g.names).join(", ")}</text></g>`; }).join("");
+  }
+  let aus = "";
+  if (ui.showAus) aus = all.acts.map(a => {
+    const [x,y] = proj(a.lat,a.lon), s = 4.6*u;
+    const ring = a.pos ? `<circle cx="${x}" cy="${y}" r="${s+3*u}" fill="none" stroke-width="${1.6*u}" style="stroke:var(--signal)"/>` : "";
+    return `<g class="pin" tabindex="0" role="button" aria-label="${esc(a.name)}" data-apin="${a.id}">${ring}<path d="M${x} ${y-s}L${x+s} ${y}L${x} ${y+s}L${x-s} ${y}Z" style="fill:${a.excluded?"var(--muted)":"var(--gold)"}" fill-opacity="${a.excluded?.4:1}" stroke-width="${0.9*u}"/></g>`;
+  }).join("");
+  let pins = "", labs = "";
+  if (ui.showOrte){
+    const rr = 7.2*u;
+    pins = all.orte.map(r => {
+      const [x,y] = proj(...GEO[r.id]);
+      const on = shown.has(r.id) && !r.excluded;
+      const op = on ? (0.4 + 0.6*r.score/100).toFixed(2) : 0.35;
+      const ring = r.pos ? `<circle cx="${x}" cy="${y}" r="${rr+2.6*u}" fill="none" stroke-width="${2*u}" style="stroke:var(--signal)"/>` : "";
+      const goal = settings.ort === r.id ? `<circle cx="${x}" cy="${y}" r="${rr+5.5*u}" fill="none" stroke-width="${2*u}" style="stroke:var(--good)"/>` : "";
+      const num = on && r.rank ? `<text x="${x}" y="${y}" font-size="${8.5*u}">${r.rank}</text>` : "";
+      return `<g class="pin" tabindex="0" role="button" aria-label="${esc(r.name)}, Rang ${r.rank||"–"}" data-pin="${r.id}">${goal}${ring}<circle cx="${x}" cy="${y}" r="${rr}" style="fill:${on?"var(--accent)":"var(--muted)"}" fill-opacity="${op}" stroke-width="${1*u}"/>${num}</g>`;
+    }).join("");
+    labs = all.orte.filter(r => shown.has(r.id) && !r.excluded && (r.rank <= 3 || r.pos > 0 || settings.ort === r.id)).map(r => { const [x,y] = proj(...GEO[r.id]); return `<text class="lab" x="${x+rr+3*u}" y="${y}" font-size="${10*u}" stroke-width="${3*u}" dominant-baseline="central">${esc(r.name)}</text>`; }).join("");
+  }
+  svg.innerHTML = `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" style="fill:var(--abroad)"/>` + land + rivers + labels + og + aus + pins + labs;
+  const sel = mapSel && all.acts.find(a => a.id === mapSel);
+  $("#mapSel").innerHTML = sel ? ausDetail(sel, all) : "";
+}
+function showTip(kind, id){
+  const all = scored(), tip = $("#ttip"), box = $("#mapwrap").getBoundingClientRect();
+  const el = document.querySelector(kind === "a" ? `[data-apin="${id}"] path` : `[data-pin="${id}"] circle:last-of-type`); if (!el) return;
+  if (kind === "a"){ const a = all.acts.find(x => x.id === id); if (!a) return; tip.innerHTML = `<b>${esc(a.name)}</b><br>${esc(a.town)} · ${esc(a.dur)}<br>${OSTATE[a.open]||""}`; }
+  else { const r = all.orte.find(x => x.id === id); if (!r) return; tip.innerHTML = `<b>${esc(r.name)}</b><br>${Math.round(r.score)} Punkte · Rang ${r.rank||"–"}<br>Längste Anreise ${fmt(r.dr.max)} · ${r.near} Ausflüge nah`; }
+  const pb = el.getBoundingClientRect();
+  tip.style.left = Math.min(box.width-120, Math.max(120, pb.left + pb.width/2 - box.left)) + "px";
+  tip.style.top = (pb.top - box.top) + "px";
+  tip.hidden = false;
+}
+document.addEventListener("pointerover", e => { if (e.pointerType !== "mouse") return; const g = e.target.closest?.("[data-pin],[data-apin]"); if (g) showTip(g.dataset.apin ? "a" : "o", g.dataset.apin || g.dataset.pin); });
+document.addEventListener("pointerout", e => { if (e.target.closest?.("[data-pin],[data-apin]")) $("#ttip").hidden = true; });
+document.addEventListener("focusin", e => { const g = e.target.closest?.("[data-pin],[data-apin]"); if (g) showTip(g.dataset.apin ? "a" : "o", g.dataset.apin || g.dataset.pin); });
+document.addEventListener("focusout", e => { if (e.target.closest?.("[data-pin],[data-apin]")) $("#ttip").hidden = true; });
+function pinActivate(g){
+  $("#ttip").hidden = true;
+  if (g.dataset.apin){ mapSel = g.dataset.apin; striking = null; render(); $("#mapSel").scrollIntoView({behavior: reduced() ? "auto" : "smooth", block:"nearest"}); }
+  else gotoRow(g.dataset.pin);
+}
+document.addEventListener("click", e => { const g = e.target.closest?.("[data-pin],[data-apin]"); if (g) pinActivate(g); });
+document.addEventListener("keydown", e => { const g = e.target.closest?.("[data-pin],[data-apin]"); if (g && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); pinActivate(g); } });
+
+// ---------- Planen ----------
+const dayState = (n, id) => { const v = (avail[n]?.days || {})[id]; return v === 0 || v === 1 || v === 2 ? v : null; };
+function windows(nights){
+  const out = [];
+  for (let i = 0; i + nights < DAYS.length; i++){
+    const ids = DAYS.slice(i, i + nights + 1).map(d => d.id);
+    const st = {};
+    for (const n of PEOPLE){
+      const vs = ids.map(id => dayState(n, id));
+      st[n] = vs.includes(0) ? "nein" : vs.includes(null) ? "offen" : vs.includes(1) ? "vielleicht" : "ja";
+    }
+    const c = k => PEOPLE.filter(n => st[n] === k).length;
+    out.push({start:ids[0], end:ids[ids.length-1], ids, st, ja:c("ja"), vl:c("vielleicht"), nein:c("nein"), offen:c("offen"), i});
+  }
+  return out.sort((a,b) => a.nein - b.nein || b.ja - a.ja || b.vl - a.vl || a.offen - b.offen || a.i - b.i);
+}
+const closedBy = endId => AUS.filter(a => a.until && a.until < endId);
+function renderPlan(all){
+  const ns = $("#nights");
+  if (!ns.children.length) ns.innerHTML = [2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n} Nächte</option>`).join("");
+  ns.value = settings.nights || 4; ns.disabled = readOnly;
+  $("#myDayBtns").innerHTML = ui.me ? `<button class="btn" type="button" data-allday="2" ${readOnly?"disabled":""}>${esc(ui.me)}: alle Tage ✓</button><button class="btn" type="button" data-allday="null" ${readOnly?"disabled":""}>Meine Zeile leeren</button>` : `<span class="hint">Wähle oben deinen Namen, um deine Tage einzutragen.</span>`;
+  const sym = {2:"✓",1:"?",0:"✕"};
+  const head = `<tr><th scope="col"></th>${DAYS.map(d => `<th scope="col" class="${d.wd===0||d.wd===6?"we":""} ${SPECIAL[d.id]?"sp":""}" title="${SPECIAL[d.id]||""}">${WD[d.wd]}<b class="num">${d.d}.${d.m}.</b>${SPECIAL[d.id] ? "•" : ""}</th>`).join("")}</tr>`;
+  const rows = PEOPLE.map(n => `<tr><td class="${ui.me===n?"mine":""}">${n}</td>${DAYS.map(d => { const v = dayState(n, d.id); const mine = ui.me === n && !readOnly; return `<td><button type="button" class="dc ${mine?"":"ro"}" data-day="${d.id}" data-v="${v===null?"":v}" ${mine?"":"disabled"} aria-label="${n}, ${dayLbl(d.id)}: ${v===2?"kann":v===1?"vielleicht":v===0?"kann nicht":"offen"}">${v===null?"":sym[v]}</button></td>`; }).join("")}</tr>`).join("");
+  const sums = `<tr class="sumrow"><td>können</td>${DAYS.map(d => `<td class="num">${PEOPLE.filter(n => dayState(n,d.id) === 2).length}</td>`).join("")}</tr>`;
+  $("#days").innerHTML = `<thead>${head}</thead><tbody>${rows}${sums}</tbody>`;
+
+  const nights = settings.nights || 4;
+  const any = PEOPLE.some(n => DAYS.some(d => dayState(n, d.id) !== null));
+  const ws = windows(nights).slice(0, 5);
+  const chosen = settings.termin;
+  const flagsOf = w => {
+    const f = [];
+    if (w.ids.includes("2027-10-31")) f.push("Zeitumstellung So 31.10.");
+    if (w.ids.includes("2027-11-01")) f.push("Allerheiligen Mo 1.11. (Feiertag)");
+    const cl = closedBy(w.end);
+    if (cl.length) f.push(`am Ende vermutlich schon zu: ${cl.slice(0,3).map(a => a.name).join(", ")}${cl.length>3?` und ${cl.length-3} weitere`:""}`);
+    return f.join(" · ");
+  };
+  $("#windows").innerHTML = (chosen ? `<div class="win chosen"><div><h3>Festgelegt: ${termLbl(chosen)}</h3><span class="hint">${chosen.nights} Nächte</span></div><button class="btn" type="button" data-termin="" ${readOnly?"disabled":""}>Wieder offen</button></div>` : "") +
+    (any ? ws.map((w,k) => `<div class="win ${k===0 && w.nein===0 && w.offen===0 ? "best" : ""}">
+      <div><h3>${dayLbl(w.start)}–${dayLbl(w.end)}</h3>
+        <div class="who">${PEOPLE.map(n => `<span class="pchip ${w.st[n]}" title="${n}: ${w.st[n]}">${n}</span>`).join("")}</div></div>
+      <button class="btn ${k===0?"good":""}" type="button" data-termin="${w.start}" ${readOnly?"disabled":""}>Festlegen</button>
+      ${flagsOf(w) ? `<div class="flags">${esc(flagsOf(w))}</div>` : ""}
+    </div>`).join("") : `<p class="empty">Noch hat niemand Tage eingetragen. Sobald alle ihre Zeile ausgefüllt haben, stehen hier die besten Zeiträume für ${nights} Nächte.</p>`);
+
+  const cl2 = closedBy("2027-11-06");
+  $("#season").innerHTML = `<b>Gut zu wissen für Ende Oktober</b><ul>
+    <li>Die <b>erste Ferienwoche</b> (23.–31.10.) ist für Ausflüge besser: Viele Burgen, Bahnen und Parks gehen um den 1. November in die Winterpause. Zum Ferienende haben ${cl2.length} der ${AUS.length} Ausflugsziele hier vermutlich zu, darunter ${cl2.slice(0,3).map(a => esc(a.name)).join(", ")}.</li>
+    <li>Am <b>So 31.10.</b> ist Zeitumstellung, danach ist es schon gegen 17 Uhr dunkel. <b>Mo 1.11.</b> ist Allerheiligen, Feiertag in NRW und Rheinland-Pfalz.</li>
+    <li>Tagsüber meist 10–14 °C, das Weinlaub ist gelb. Federweißer gibt es oft noch bis Ende Oktober.</li></ul>`;
+
+  renderHouses(all);
+}
+function renderHouses(all){
+  const hs = houses.map(h => ({...h, ...votesOf(h)})).sort((a,b) => (b.id === settings.house) - (a.id === settings.house) || b.sum - a.sum || (b.ts||0) - (a.ts||0));
+  $("#hcount").textContent = houses.length ? `${houses.length} gesammelt` : "";
+  const top = settings.ort ? [RBY[settings.ort]] : all.orte.filter(r => !r.excluded).sort((a,b) => b.score - a.score).slice(0,3);
+  const {ci, co, nights, fixed} = stayDates();
+  $("#searchlinks").innerHTML = `<b>Suchen für ${dayLbl(ci)}–${dayLbl(co)}${fixed?"":" (Beispiel)"}:</b> ` + top.map(r => { const u = searchUrls(r.name); return `<span>${esc(r.name)}: <a href="${u.airbnb}" target="_blank" rel="noopener">Airbnb</a> · <a href="${u.booking}" target="_blank" rel="noopener">Booking</a></span>`; }).join("");
+  const sel = $("#hOrt");
+  if (!sel.children.length) sel.innerHTML = `<option value="">Ort wählen …</option>` + R.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("") + `<option value="anders">anderer Ort</option>`;
+  $("#hNights").placeholder = String(nights);
+  $("#hSubmit").disabled = readOnly;
+  $("#houses").innerHTML = hs.length ? hs.map(h => {
+    const url = safeUrl(h.url), booked = settings.house === h.id;
+    const n = +h.nights || nights, p = +h.price || 0;
+    const per = p && n ? Math.round(p / 6 / n) : 0;
+    const ortName = RBY[h.ort]?.name || (h.ort === "anders" ? "anderer Ort" : "");
+    const id = esc(h.id);
+    return `<article class="house ${booked?"booked":""}">
+      <div class="dhead"><div><h3>${esc(h.name)}</h3><span class="hint">${esc(ortName)}${h.by ? (ortName ? " · " : "") + "eingetragen von "+esc(h.by) : ""}</span></div>${booked?'<span class="badge goal">Gebucht</span>':""}</div>
+      <div class="meta num">${p ? `<span><b>${p.toLocaleString("de-DE")} €</b> gesamt</span>` : ""}${per ? `<span>≈ <b>${per} €</b> pro Erwachsenem und Nacht</span>` : ""}${+h.rooms ? `<span><b>${+h.rooms}</b> Schlafzimmer</span>` : ""}${+h.beds ? `<span><b>${+h.beds}</b> Plätze</span>` : ""}${+h.nights ? `<span>${+h.nights} Nächte</span>` : ""}</div>
+      ${h.note ? `<p>${esc(h.note)}</p>` : ""}
+      ${url ? `<p><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Ansehen auf ${esc(host(url))}</a></p>` : ""}
+      ${allBadges(h)}
+      <div class="hfoot">
+        <div class="vote" role="group" aria-label="Deine Stimme"><button type="button" data-hvote="1" data-id="${id}" aria-pressed="${h.mine===1}" title="Gefällt mir">♥</button><button type="button" class="no" data-hvote="-1" data-id="${id}" aria-pressed="${h.mine===-1}" title="Lieber nicht">✕</button></div>
+        <div class="btnrow">${booked ? `<button class="btn" type="button" data-hbook="" ${readOnly?"disabled":""}>Nicht mehr gebucht</button>` : `<button class="btn good" type="button" data-hbook="${id}" ${readOnly?"disabled":""}>Gebucht</button>`}
+        ${delAsk === h.id ? `<button class="btn danger" type="button" data-hdel="${id}">Wirklich löschen</button><button class="btn" type="button" data-cancel>Abbrechen</button>` : `<button class="btn" type="button" data-hdelask="${id}" ${readOnly?"disabled":""}>Löschen</button>`}</div>
+      </div></article>`;
+  }).join("") : `<p class="empty" style="grid-column:1/-1">Noch keine Ferienhäuser. Über „Haus hinzufügen“ legt ihr das erste an, mit Link, Preis und Zimmern.</p>`;
+}
+
+/*@STORE@*/
+
+// ---------- Schreiben ----------
+const chains = {};
+function queue(path, fn){ const p = (chains[path]||Promise.resolve()).then(fn, fn); chains[path] = p.catch(()=>{}); return p; }
+function deepMerge(t, p){ for (const [k,v] of Object.entries(p)){ if (v && typeof v === "object" && !Array.isArray(v)) t[k] = deepMerge(t[k] && typeof t[k] === "object" ? {...t[k]} : {}, v); else t[k] = v; } return t; }
+function writeFail(e){
+  if (e && e.code === "invalid_argument"){ readOnly = true; toast("Du kannst hier nur lesen. Olaf muss dich über „Teilen“ mit Bearbeitungsrecht einladen."); render(); }
+  else if (e && e.code === "denied") toast("Speichern abgelehnt: In der Datenbank fehlen noch die Regeln für den Mosel-Planer.");
+  else if (e && e.code === "quota_exceeded") toast("Der Speicher ist voll. Löscht alte Ferienhäuser, dann geht es wieder.");
+  else toast("Speichern hat nicht geklappt, bitte nochmal versuchen.");
+  return false;
+}
+function merge(path, patch){ return queue(path, () => STORE.merge(path, patch).then(() => true)).catch(writeFail); }
+function guardWrite(){ if (readOnly){ toast("Du kannst hier nur lesen."); return false; } return true; }
+function setMark(id, patch){
+  if (!guardWrite()) return;
+  marks[id] = deepMerge(structuredClone(marks[id] || {}), patch);
+  render();
+  if (db) merge("marks/"+id, patch);
+}
+let sTimer = null, pendingS = {};
+function setSettings(patch){
+  if (!guardWrite()) return;
+  settings = deepMerge(structuredClone(settings), patch);
+  render();
+  if (!db) return;
+  pendingS = deepMerge(pendingS, patch);
+  editingSettings++;
+  clearTimeout(sTimer);
+  sTimer = setTimeout(async () => { const p = pendingS; pendingS = {}; await merge("settings/main", p); editingSettings = 0; }, 450);
+}
+function setDays(patch){
+  if (!guardWrite() || !ui.me) return;
+  avail[ui.me] = deepMerge(structuredClone(avail[ui.me] || {}), {days:patch});
+  render();
+  if (db) merge("avail/"+ui.me, {days:patch});
+}
+function setHouse(id, patch){
+  if (!guardWrite()) return;
+  const i = houses.findIndex(h => h.id === id); if (i < 0) return;
+  houses[i] = deepMerge(structuredClone(houses[i]), patch);
+  render();
+  if (db) merge("houses/"+id, patch);
+}
+let toastT;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3500); }
+
+function setTab(t){
+  ui.tab = t; saveUi(); $("#ttip").hidden = true;
+  try { window.history.replaceState(null, "", "#"+t); } catch {}
+  render(); window.scrollTo({top:0});
+}
+function gotoRow(id){
+  const all = scored(); const r = all.orte.find(x => x.id === id);
+  if (r && r.excluded && !ui.showOut) ui.showOut = true;
+  if (r && !filtered([r]).length){ ui.secs = Object.keys(SEC); ui.maxDrive = 300; ui.onlyFav = false; toast("Filter zurückgesetzt, um den Ort zu zeigen."); }
+  ui.tab = "list"; saveUi(); open = id; striking = null; render();
+  const el = $("#row-"+id);
+  if (el) el.scrollIntoView({behavior: reduced() ? "auto" : "smooth", block:"start"});
+}
+function openAus(id){
+  striking = null;
+  if (ui.tab === "votes"){ voteSel = id; ui.vt = "aus"; render(); $("#voteSel").scrollIntoView({behavior: reduced() ? "auto" : "smooth", block:"nearest"}); return; }
+  mapSel = id; ui.tab = "map"; saveUi(); render();
+  $("#mapSel").scrollIntoView({behavior: reduced() ? "auto" : "smooth", block:"nearest"});
+}
+
+// ---------- Ereignisse ----------
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.id === "guideOk"){ $("#guide").open = false; ui.guideSeen = true; saveUi(); }
+  else if (b.dataset.tab) setTab(b.dataset.tab);
+  else if (b.dataset.tabgo) setTab(b.dataset.tabgo);
+  else if (b.dataset.deck){ ui.deck = b.dataset.deck; saveUi(); deckKey = ""; undoStack = []; if (ui.tab !== "swipe") setTab("swipe"); else render(); }
+  else if (b.dataset.vt){ ui.vt = b.dataset.vt; voteSel = null; saveUi(); render(); }
+  else if (b.dataset.view){ ui.view = b.dataset.view; saveUi(); render(); }
+  else if (b.id === "showOrte" || b.id === "showAus"){ ui[b.id] = !ui[b.id]; saveUi(); render(); }
+  else if (b.dataset.me){ ui.me = b.dataset.me; saveUi(); deckKey = ""; undoStack = []; render(); toast(`Hallo ${ui.me}! Deine Stimmen zählen jetzt für dich.`); }
+  else if (b.dataset.sw !== undefined) castSwipe(+b.dataset.sw);
+  else if (b.id === "swSkip") castSwipe(0);
+  else if (b.id === "swUndo"){ const h = undoStack.pop(); if (h){ setMark(h.id, {votes:{[ui.me]: h.prev}}); skipped = skipped.filter(x => x !== h.id); deckKey = ""; render(); } }
+  else if (b.id === "swAll" || b.id === "mxAll"){ ui[b.id] = !ui[b.id]; saveUi(); deckKey = ""; render(); }
+  else if (b.dataset.sec){ const c = b.dataset.sec; ui.secs = ui.secs.includes(c) ? ui.secs.filter(x => x !== c) : [...ui.secs, c]; saveUi(); render(); }
+  else if (b.id === "onlyFav" || b.id === "showOut"){ ui[b.id] = !ui[b.id]; saveUi(); render(); }
+  else if (b.id === "resetW") setSettings({weights:{...DEF.weights}});
+  else if (b.dataset.sort){ const s = b.dataset.sort; if (ui.sort === s) ui.dir *= -1; else { ui.sort = s; ui.dir = ["score","wein","kids","hike","culture","quiet","houses","near","votes"].includes(s) ? -1 : 1; } saveUi(); render(); }
+  else if (b.dataset.open){ open = open === b.dataset.open ? null : b.dataset.open; striking = null; render(); }
+  else if (b.dataset.goto) gotoRow(b.dataset.goto);
+  else if (b.dataset.asel) openAus(b.dataset.asel);
+  else if (b.hasAttribute("data-closesel")){ mapSel = null; voteSel = null; striking = null; render(); }
+  else if (b.dataset.vote){
+    if (!ui.me){ $("#mebox").scrollIntoView({block:"center"}); toast("Wähle zuerst oben, wer du bist."); return; }
+    const id = b.dataset.id, v = +b.dataset.vote, cur = +((marks[id]?.votes||{})[ui.me]||0);
+    setMark(id, {votes:{[ui.me]: cur === v ? 0 : v}});
+  }
+  else if (b.dataset.goal !== undefined){ if (!guardWrite()) return; setSettings({ort: b.dataset.goal || null}); toast(b.dataset.goal ? `${RBY[b.dataset.goal].name} ist jetzt euer Ziel.` : "Das Ziel ist wieder offen."); }
+  else if (b.dataset.strike){ striking = b.dataset.strike; render(); const i = $("#reason-"+striking); i && i.select(); }
+  else if (b.hasAttribute("data-cancel")){ striking = null; delAsk = null; render(); }
+  else if (b.dataset.confirm){ const id = b.dataset.confirm; const reason = ($("#reason-"+id)?.value||"").trim().slice(0,80); striking = null; if (open === id) open = null;
+    setMark(id, {excluded:true, reason, by:ui.me||""}); toast("Gestrichen. Lässt sich jederzeit wieder aufnehmen."); }
+  else if (b.dataset.restore){ setMark(b.dataset.restore, {excluded:false}); }
+  else if (b.dataset.day){ const cur = dayState(ui.me, b.dataset.day); const next = cur === null ? 2 : cur === 2 ? 1 : cur === 1 ? 0 : null; setDays({[b.dataset.day]: next}); }
+  else if (b.dataset.allday){ const v = b.dataset.allday === "null" ? null : +b.dataset.allday; setDays(Object.fromEntries(DAYS.map(d => [d.id, v]))); }
+  else if (b.dataset.termin !== undefined){ if (!guardWrite()) return; const t = b.dataset.termin ? {start:b.dataset.termin, nights:settings.nights || 4} : null; setSettings({termin: t}); toast(t ? `Termin festgelegt: ${termLbl(t)}` : "Der Termin ist wieder offen."); }
+  else if (b.dataset.hvote){
+    if (!ui.me){ toast("Wähle zuerst oben, wer du bist."); return; }
+    const h = houses.find(x => x.id === b.dataset.id); if (!h) return;
+    const v = +b.dataset.hvote, cur = +((h.votes||{})[ui.me]||0);
+    setHouse(h.id, {votes:{[ui.me]: cur === v ? 0 : v}});
+  }
+  else if (b.dataset.hbook !== undefined){ setSettings({house: b.dataset.hbook || null}); }
+  else if (b.dataset.hdelask){ delAsk = b.dataset.hdelask; render(); }
+  else if (b.dataset.hdel){ const id = b.dataset.hdel; delAsk = null; if (!guardWrite()) return; houses = houses.filter(h => h.id !== id); if (settings.house === id) setSettings({house:null}); render();
+    if (db) queue("houses/"+id, () => STORE.del("houses/"+id)).catch(writeFail); }
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.dataset.w) setSettings({weights:{[t.dataset.w]: +t.value}});
+  else if (t.id === "maxDrive"){ ui.maxDrive = +t.value; saveUi(); render(); }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.origin){ if (OIDX[t.value] !== undefined){ setSettings({origins:{[t.dataset.origin]: t.value}}); t.blur(); } }
+  else if (t.id === "nights"){ const n = Math.max(2, Math.min(10, +t.value || 4)); setSettings({nights:n}); }
+  else if (t.id === "sortSel"){ ui.sort = t.value; ui.dir = ["score","wein","kids","hike","culture","quiet","houses","near","votes"].includes(t.value) ? -1 : 1; saveUi(); render(); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id?.startsWith("reason-")) document.querySelector(`[data-confirm="${e.target.id.slice(7)}"]`)?.click(); });
+$("#hform").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!guardWrite()) return;
+  const name = $("#hName").value.trim().slice(0,80);
+  const rawUrl = $("#hUrl").value.trim();
+  const url = rawUrl ? safeUrl(rawUrl) : "";
+  if (!name){ $("#hMsg").textContent = "Bitte einen Namen eingeben."; return; }
+  if (rawUrl && !url){ $("#hMsg").textContent = "Der Link muss mit https:// beginnen."; return; }
+  const num = (id, max) => { const v = Math.round(+$(id).value); return v > 0 && v <= max ? v : null; };
+  const data = {name, url, ort:$("#hOrt").value || "", price:num("#hPrice",20000), nights:num("#hNights",14), rooms:num("#hRooms",12), beds:num("#hBeds",30), note:$("#hNote").value.trim().slice(0,300), by:ui.me || "", ts:Date.now(), votes: ui.me ? {[ui.me]:1} : {}};
+  $("#hSubmit").disabled = true;
+  try {
+    if (db){ const id = await STORE.add("houses", data); if (!houses.some(h => h.id === id)) houses.push({...data, id}); }
+    else houses.push({...data, id:"h"+Date.now()});
+    $("#hform").reset(); $("#hMsg").textContent = ""; $("#hFold").open = false; toast("Haus gespeichert.");
+  } catch(err){ writeFail(err); }
+  $("#hSubmit").disabled = readOnly;
+  render();
+});
+
+$("#gDots").innerHTML = dots(3); $("#gEur").innerHTML = euros(1);
+if (!ui.guideSeen) $("#guide").open = true;
+$("#guide").addEventListener("toggle", () => { if (!$("#guide").open && !ui.guideSeen){ ui.guideSeen = true; saveUi(); } });
+if (matchMedia("(min-width: 821px)").matches){ $("#wFold").open = true; $("#fFold").open = true; }
+
+render();
+
+// ---------- Geteilter Stand ----------
+(async () => {
+  const st = $("#status");
+  const setStatus = (cls, txt) => { st.className = "status " + cls; st.lastElementChild.textContent = txt; };
+  db = await STORE.connect({
+    status: setStatus,
+    readOnly: () => { readOnly = true; render(); },
+    marks: m => { marks = m; render(); },
+    avail: m => { avail = Object.fromEntries(Object.entries(m).filter(([k]) => PEOPLE.includes(k))); render(); },
+    houses: list => { houses = list; if (delAsk && !houses.some(h => h.id === delAsk)) delAsk = null; render(); },
+    settings: d => { if (editingSettings) return; settings = {...structuredClone(DEF), ...d, weights:{...DEF.weights, ...(d.weights||{})}, origins:{...(d.origins||{})}}; render(); }
+  });
+  render();
+})();
+</script>

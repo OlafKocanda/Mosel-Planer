@@ -1,0 +1,137 @@
+<title>Ab an die Mosel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vollkorn:ital,wght@0,600;0,700;1,600&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: zwei Handy-Bildschirme untereinander (je ein Screenshot), dunkles Schieferband oben mit der Mosel als goldene Linie, darunter Karten der App, Schritte, Abschluss-Band mit Link. Bewusst eine feste Optik, damit Screenshots immer gleich aussehen. */
+:root{
+  --paper:#ECEFEB; --card:#FFFFFF; --ink:#1A2427; --muted:#56646A; --line:#CFD8D4;
+  --slate:#1B2B30; --slate-2:#24383E; --on-slate:#E8EEEC; --on-slate-muted:#A9BBBD;
+  --gold:#DDAE45; --gold-ink:#8A6110; --gold-soft:#F3E7C6; --teal:#1D5C68; --wine:#9B2738; --good:#2B724C;
+  --display:"Vollkorn",Georgia,"Times New Roman",serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;font-variant-numeric:lining-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--slate)}
+.page{max-width:430px;margin:0 auto;background:var(--paper)}
+.inner{padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))}
+h1,h2{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance}
+p{margin:0}
+.num{font-variant-numeric:lining-nums tabular-nums}
+
+/* Screen 1 */
+.band{background:var(--slate);color:var(--on-slate)}
+.band .inner{padding-block:26px 22px;display:grid;gap:14px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 124px;gap:6px;align-items:center}
+.eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.1em;white-space:nowrap;text-transform:uppercase;color:var(--gold)}
+h1{font-size:43px;line-height:1;margin-top:8px;color:var(--on-slate);font-variant-numeric:lining-nums}
+h1 em{font-style:italic;color:var(--gold)}
+.river{width:124px;height:118px;display:block}
+.river .rv{fill:none;stroke:var(--gold);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.river .rh{fill:none;stroke:var(--on-slate-muted);stroke-width:4;opacity:.45;stroke-linecap:round}
+.river circle{fill:var(--on-slate);stroke:var(--slate);stroke-width:3}
+.river text{fill:var(--on-slate-muted);font-family:var(--body);font-weight:600;font-size:17px}
+.lede{font-size:17px;line-height:1.4;color:var(--on-slate)}
+.lede b{color:var(--gold);font-weight:700}
+
+.s1 .body{padding-block:20px 24px;display:grid;gap:16px}
+.fan{position:relative;height:262px}
+.fan figure{position:absolute;top:8px;width:206px;margin:0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--card);box-shadow:0 10px 26px rgb(20 40 45 / .18)}
+.fan figure img{display:block;width:100%;height:auto}
+.fan .back{left:14px;transform:rotate(-7deg);transform-origin:bottom center}
+.fan .front{right:10px;top:0;transform:rotate(5deg);transform-origin:bottom center}
+.stamp{position:absolute;top:30px;right:44px;transform:rotate(-10deg);border:3px solid var(--good);color:var(--good);background:var(--card);border-radius:8px;padding:2px 10px;font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:.03em}
+.cap{font-size:15px;color:var(--muted);text-align:center;margin-top:-4px}
+.route{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px}
+.route h2{font-size:19px}
+.route ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.route li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:8px;border-top:1px solid var(--line);padding-top:5px}
+.route li b{font-size:16px}
+.route li small{color:var(--muted);font-size:13.5px;margin-left:6px}
+.route li span:last-child{font-family:var(--display);font-weight:700;font-size:22px;color:var(--teal)}
+
+/* Screen 2 */
+.s2 .body{padding-block:26px 22px;display:grid;gap:18px}
+.s2 h2{font-size:27px;line-height:1.05;font-variant-numeric:lining-nums}
+.s2 h2 em{font-style:italic;color:var(--gold-ink)}
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;align-items:start;font-size:16px}
+ol.steps li::before{content:counter(s);font-variant-numeric:lining-nums;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--slate);color:var(--gold);font-family:var(--display);font-weight:700;font-size:20px}
+ol.steps b{display:block;font-size:17px}
+ol.steps small{color:var(--muted);font-size:14.5px;display:block;margin-top:1px}
+.swipes{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.swipes span{font-size:13px;font-weight:700;border-radius:99px;padding:2px 9px;background:var(--card);border:1px solid var(--line)}
+.swipes .y{color:var(--good)} .swipes .t{color:var(--wine)} .swipes .n{color:var(--muted)}
+.does{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.does div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14.5px;line-height:1.3;min-width:0}
+.does b{display:block;font-family:var(--display);font-size:17px;margin-bottom:2px}
+.tip{background:var(--gold-soft);border-radius:12px;padding:11px 14px;font-size:15px;line-height:1.35}
+.tip b{color:var(--gold-ink)}
+.now{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:15px;color:var(--muted);flex-wrap:wrap}
+.now b{color:var(--ink);font-family:var(--display);font-size:18px}
+.cta{background:var(--slate);color:var(--on-slate)}
+.cta .inner{padding-block:20px 24px;display:grid;gap:6px;text-align:center}
+.cta p:first-child{font-family:var(--display);font-weight:700;font-size:25px;line-height:1.1}
+.cta p:first-child span{color:var(--gold)}
+.cta .url{font-size:13.5px;color:var(--on-slate-muted);overflow-wrap:anywhere}
+.cta .url a{color:var(--on-slate-muted)}
+</style>
+
+<main class="page">
+  <section class="s1" id="s1">
+    <div class="band"><div class="inner">
+      <div class="hero">
+        <div>
+          <p class="eyebrow">Herbstferien NRW 2027</p>
+          <h1>Ab an die <em>Mosel.</em></h1>
+        </div>
+        {{RIVER}}
+      </div>
+      <p class="lede">23.10. bis 6.11., sechs Erwachsene, zwei Kinder, ein Ferienhaus. Damit wir das nicht in 300 Chat-Nachrichten klären, gibt es den <b>Mosel-Planer</b>.</p>
+    </div></div>
+    <div class="inner body">
+      <div class="fan" aria-label="Zwei Karten aus der App: Burg Eltz und Cochem">
+        <figure class="back"><img src="{{AUS}}" alt="App-Karte Burg Eltz"></figure>
+        <figure class="front"><img src="{{ORT}}" alt="App-Karte Cochem"></figure>
+        <span class="stamp">GERNE ♥</span>
+      </div>
+      <p class="cap">Orte und Ausflüge swipen, die App zählt mit.</p>
+      <div class="route">
+        <h2>So weit ist es bis Cochem</h2>
+        <ul>
+          <li><span><b>Leverkusen</b><small>Joni, Nicole &amp; Alessa</small></span><span class="num">1:45 h</span></li>
+          <li><span><b>Herten</b><small>Dennis &amp; Hanna</small></span><span class="num">2:40 h</span></li>
+          <li><span><b>Kelkheim</b><small>Anni, Olaf &amp; Thea</small></span><span class="num">1:50 h</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="s2" id="s2">
+    <div class="inner body">
+      <h2>Dein Teil: <em>10 Minuten.</em></h2>
+      <ol class="steps">
+        <li><div><b>Link öffnen, Namen antippen</b><small>Keine Anmeldung, die App merkt sich, wer du bist.</small></div></li>
+        <li><div><b>Swipen: 24 Orte und 28 Ausflüge</b>
+          <div class="swipes"><span class="y">→ gerne</span><span class="t">↑ Top-Favorit</span><span class="n">← lieber nicht</span></div></div></li>
+        <li><div><b>Freie Tage eintragen</b><small>Unter „Planen“ antippen, an welchen Ferientagen du kannst.</small></div></li>
+      </ol>
+      <h2>Den Rest macht <em>die App.</em></h2>
+      <div class="does">
+        <div><b>Rangliste</b>Welcher Ort passt zu uns, nach unseren Wünschen gewichtet</div>
+        <div><b>Anreise</b>für alle drei Familien berechnet, keiner fährt ewig</div>
+        <div><b>Termin</b>findet die Tage, an denen alle können</div>
+        <div><b>Ferienhaus</b>Links sammeln, gemeinsam bewerten</div>
+      </div>
+      <p class="tip"><b>Tipp: lieber die erste Ferienwoche.</b> Burg Eltz, Moselschiffe und der Freizeitpark Klotten machen um den 1. November Winterpause.</p>
+      <p class="now"><span>Ohne eure Stimmen vorne:</span><b>Cochem · Ernst · Kröv</b></p>
+    </div>
+    <div class="cta"><div class="inner">
+      <p>Link steht <span>unter diesem Bild ↓</span></p>
+      <p class="url"><a href="https://olafkocanda.github.io/Mosel-Planer/" target="_blank" rel="noopener">olafkocanda.github.io/Mosel-Planer</a> · ohne Anmeldung</p>
+    </div></div>
+  </section>
+</main>
