@@ -1,0 +1,154 @@
+{
+  "rules": {
+    "skiwoche": {
+      ".read": true,
+      "marks": {
+        "$id": {
+          ".write": "$id.length <= 30",
+          "excluded": {
+            ".validate": "newData.isBoolean()"
+          },
+          "reason": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "by": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "votes": {
+            "$person": {
+              ".validate": "($person === 'Joni' || $person === 'Achim' || $person === 'Adrian' || $person === 'Olaf') && newData.isNumber() && newData.val() >= -1 && newData.val() <= 2"
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "settings": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['weights'])"
+      },
+      "meta": {
+        ".write": true
+      }
+    },
+    "mosel": {
+      ".read": true,
+      "marks": {
+        "$id": {
+          ".write": "$id.length <= 40",
+          "votes": {
+            "$p": {
+              ".validate": "($p === 'Jonathan' || $p === 'Nicole' || $p === 'Dennis' || $p === 'Hanna' || $p === 'Anni' || $p === 'Olaf') && newData.isNumber() && newData.val() >= -1 && newData.val() <= 2"
+            }
+          },
+          "excluded": {
+            ".validate": "newData.isBoolean()"
+          },
+          "reason": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "by": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "avail": {
+        "$p": {
+          ".write": "($p === 'Jonathan' || $p === 'Nicole' || $p === 'Dennis' || $p === 'Hanna' || $p === 'Anni' || $p === 'Olaf')",
+          "days": {
+            "$d": {
+              ".validate": "$d.matches(/^2027-1[01]-[0-3][0-9]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 2"
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "houses": {
+        "$h": {
+          ".write": "$h.length <= 40",
+          ".validate": "newData.hasChildren(['name'])",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "url": {
+            ".validate": "newData.isString() && newData.val().length <= 400"
+          },
+          "ort": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "note": {
+            ".validate": "newData.isString() && newData.val().length <= 300"
+          },
+          "by": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "price": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20000"
+          },
+          "nights": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 14"
+          },
+          "rooms": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 12"
+          },
+          "beds": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 30"
+          },
+          "ts": {
+            ".validate": "newData.isNumber()"
+          },
+          "votes": {
+            "$p": {
+              ".validate": "($p === 'Jonathan' || $p === 'Nicole' || $p === 'Dennis' || $p === 'Hanna' || $p === 'Anni' || $p === 'Olaf') && newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "settings": {
+        ".write": true,
+        "weights": {
+          "$k": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+          }
+        },
+        "origins": {
+          "$p": {
+            ".validate": "($p === 'Jonathan' || $p === 'Nicole' || $p === 'Dennis' || $p === 'Hanna' || $p === 'Anni' || $p === 'Olaf') && newData.isString() && newData.val().length <= 20"
+          }
+        },
+        "nights": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 10"
+        },
+        "termin": {
+          "start": {
+            ".validate": "newData.isString() && newData.val().matches(/^2027-1[01]-[0-3][0-9]$/)"
+          },
+          "nights": {
+            ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 10"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "ort": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "house": {
+          ".validate": "newData.isString() && newData.val().length <= 40"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
