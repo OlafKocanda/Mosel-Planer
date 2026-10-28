@@ -1,37 +1,5 @@
 {
   "rules": {
-    "skiwoche": {
-      ".read": true,
-      "marks": {
-        "$id": {
-          ".write": "$id.length <= 30",
-          "excluded": {
-            ".validate": "newData.isBoolean()"
-          },
-          "reason": {
-            ".validate": "newData.isString() && newData.val().length <= 80"
-          },
-          "by": {
-            ".validate": "newData.isString() && newData.val().length <= 20"
-          },
-          "votes": {
-            "$person": {
-              ".validate": "($person === 'Joni' || $person === 'Achim' || $person === 'Adrian' || $person === 'Olaf') && newData.isNumber() && newData.val() >= -1 && newData.val() <= 2"
-            }
-          },
-          "$other": {
-            ".validate": false
-          }
-        }
-      },
-      "settings": {
-        ".write": true,
-        ".validate": "newData.hasChildren(['weights'])"
-      },
-      "meta": {
-        ".write": true
-      }
-    },
     "mosel": {
       ".read": true,
       "marks": {
