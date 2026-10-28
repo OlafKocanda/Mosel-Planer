@@ -1291,15 +1291,15 @@ function renderHouses(all){
   }).join("") : `<p class="empty" style="grid-column:1/-1">Noch keine Ferienhäuser. Über „Haus hinzufügen“ legt ihr das erste an, mit Link, Preis und Zimmern.</p>`;
 }
 
-// Speicher: Firebase Realtime Database (Projekt skimales, Daten unter mosel/)
+// Speicher: Firebase Realtime Database (eigenes Projekt mosel-planer, Daten unter mosel/)
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyC-KLZJUyKdIlZTMPOe_ZHQIBZfKI9hs5o",
-  authDomain: "skimales.firebaseapp.com",
-  databaseURL: "https://skimales-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "skimales",
-  storageBucket: "skimales.firebasestorage.app",
-  messagingSenderId: "637282359639",
-  appId: "1:637282359639:web:a0c7cc2e31d23e9da0c612"
+  apiKey: "AIzaSyDcR3q9jYCMVFsJPcvbos7fSClzNOxYQqM",
+  authDomain: "mosel-planer.firebaseapp.com",
+  databaseURL: "https://mosel-planer-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "mosel-planer",
+  storageBucket: "mosel-planer.firebasestorage.app",
+  messagingSenderId: "748659087509",
+  appId: "1:748659087509:web:a24d3ce360941355d0239c"
 };
 const ROOT = "mosel";
 const fbPath = p => ROOT + "/" + (p === "settings/main" ? "settings" : p);
